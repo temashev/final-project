@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.db import models
 from app import schemas
@@ -93,6 +94,15 @@ async def create_team(name: str, db: AsyncSession, current_user: models.User):
     return new_team
 
 
+async def get_team_by_team_id(team_id: int, db: AsyncSession, current_user: models.User):
+    stmt = select(models.Team).where(models.Team.id == team_id).options(selectinload(models.Team.members))
+    result = await db.execute(stmt)
+    team = result.scalar_one_or_none()
+    if not team or current_user not in team.members:
+        return None
+    return team
+
+
 async def get_team_by_invite_code(invite_code: str, db: AsyncSession):
     stmt = select(models.Team).where(models.Team.invite_code == invite_code)
     result = await db.execute(stmt)
@@ -112,5 +122,20 @@ async def add_member_to_team(current_user: models.User, team: models.Team, db: A
     await db.refresh(new_member)
 
     return new_member
+
+
+async def remove_member_from_team(team_id: int, user_id: int, db: AsyncSession, current_user: models.User):
+    stmt = select(models.Team).where(models.Team.id == team_id).options(selectinload(models.Team.members))
+    result = await db.execute(stmt)
+    team = result.scalar_one_or_none()
+    if not team:
+        return None
+    if current_user.role == 'manager':
+        for member in team.members:
+            if member.id == user_id:
+                team.members.remove(member)
+                await db.commit()
+                return team
+    return None
 
 # =========== TEAM SECTION ===========

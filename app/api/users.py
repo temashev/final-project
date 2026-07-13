@@ -70,8 +70,5 @@ async def change_password(
 
 
 @users_router.get('/me/', response_model=UserResponse)
-async def get_my_profile(
-        current_user = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db_session)
-):
+async def get_my_profile(current_user = Depends(get_current_user)):
     return current_user
