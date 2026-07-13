@@ -2,6 +2,7 @@ import pytest
 
 
 @pytest.mark.asyncio
+@pytest.mark.register
 async def test_register_user(client, unique_email):
     payload = {
         'email': unique_email,
@@ -10,7 +11,7 @@ async def test_register_user(client, unique_email):
         'confirm_password': 'TestPass1'
     }
 
-    response = await client.post('/users/register/', json=payload)
+    response = await client.post('/auth/register/', json=payload)
 
     assert response.status_code == 200
 
@@ -39,8 +40,8 @@ async def test_register_and_login_user_pipeline(client, unique_email):
         'password': password,
     }
 
-    await client.post('/users/register/', json=registered_payload)
-    response = await client.post('/users/login/', json=payload)
+    await client.post('/auth/register/', json=registered_payload)
+    response = await client.post('/auth/login/', json=payload)
 
     assert response.status_code == 200
 
@@ -50,6 +51,7 @@ async def test_register_and_login_user_pipeline(client, unique_email):
 
 
 @pytest.mark.asyncio
+@pytest.mark.register
 async def test_register_duplicate_email(client, unique_email):
     password = 'TestPass1'
 
@@ -60,7 +62,7 @@ async def test_register_duplicate_email(client, unique_email):
         'confirm_password': password
     }
 
-    await client.post('/users/register/', json=payload_1)
+    await client.post('/auth/register/', json=payload_1)
 
     payload_2 = {
         'email': unique_email,
@@ -69,7 +71,7 @@ async def test_register_duplicate_email(client, unique_email):
         'confirm_password': password
     }
 
-    response = await client.post('/users/register/', json=payload_2)
+    response = await client.post('/auth/register/', json=payload_2)
 
     assert response.status_code == 400
     assert response.json()['detail'] == 'Пользователь с таким email уже зарегистрирован'
@@ -92,8 +94,19 @@ async def test_login_wrong_password(client, unique_email):
         'password': password + '1',
     }
 
-    await client.post('/users/register/', json=registered_payload)
-    response = await client.post('/users/login/', json=payload)
+    await client.post('/auth/register/', json=registered_payload)
+    response = await client.post('/auth/login/', json=payload)
 
     assert response.status_code == 401
     assert response.json()['detail'] == 'Неверный email или пароль'
+
+
+@pytest.mark.asyncio
+async def test_get_user_profile(client, create_registered_test_user_member, unique_email):
+    users_token = create_registered_test_user_member
+    users_headers = {
+        'Authorization': f'Bearer {users_token}'
+    }
+
+    response = await client.get('/users/me/', headers=users_headers)
+    assert response.status_code == 200

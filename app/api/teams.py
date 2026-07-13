@@ -19,7 +19,7 @@ async def register_team(
     return team
 
 
-@teams_router.post('/join/{invite_code}/')
+@teams_router.post('/{invite_code}/join/')
 async def join_team(
         invite_code: str,
         db: AsyncSession = Depends(get_db_session),

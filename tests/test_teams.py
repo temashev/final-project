@@ -63,5 +63,5 @@ async def test_join_by_invite_code(client, create_registered_test_user_manager, 
         'invite_code': invite_code
     }
 
-    response = await client.post(f'/teams/join/{invite_code}/', json=join_payload, headers=member_headers)
+    response = await client.post(f'/teams/{invite_code}/join/', json=join_payload, headers=member_headers)
     assert response.status_code == 200

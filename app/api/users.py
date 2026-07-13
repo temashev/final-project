@@ -9,9 +9,10 @@ from app.schemas import UserRegister, UserResponse, UserLogin, UserPasswordChang
 from app.services.security import verify_password, create_access_token
 
 users_router = APIRouter(prefix='/users', tags=['Пользователи'])
+auth_router = APIRouter(prefix='/auth', tags=['Аутентификация'])
 
 
-@users_router.post('/register/', response_model=UserResponse)
+@auth_router.post('/register/', response_model=UserResponse)
 async def register_user(user: UserRegister, db: AsyncSession = Depends(get_db_session)):
     # Отлавливание зарегистрированного имейла
     existing_user = await get_user_by_email(db=db, email=user.email)
@@ -24,7 +25,7 @@ async def register_user(user: UserRegister, db: AsyncSession = Depends(get_db_se
     return new_user
 
 
-@users_router.post('/login/')
+@auth_router.post('/login/')
 async def login_user(user: UserLogin, db: AsyncSession = Depends(get_db_session)):
     user_data = await get_user_by_email(db=db, email=user.email)
     if not user_data:
@@ -44,7 +45,7 @@ async def login_user(user: UserLogin, db: AsyncSession = Depends(get_db_session)
     return {'access_token': access_token, 'token_type': 'bearer'}
 
 
-@users_router.post('/logout/')
+@auth_router.post('/logout/')
 async def logout_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db_session)):
     await add_token_to_blacklist(db=db, token=token)
 
@@ -67,3 +68,10 @@ async def change_password(
 
     return {'message': 'Пароль обновлен успешно'}
 
+
+@users_router.get('/me/', response_model=UserResponse)
+async def get_my_profile(
+        current_user = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db_session)
+):
+    return current_user

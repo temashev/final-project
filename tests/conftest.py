@@ -60,7 +60,7 @@ async def create_registered_test_user_member(client, unique_email):
     }
 
     # Регистрация
-    reg = await client.post('/users/register/', json=test_user_register_data)
+    reg = await client.post('/auth/register/', json=test_user_register_data)
     assert reg.status_code == 200
 
     # Замена имейла на sub, т.к. в get_current_user проверяется именно по ключу sub
@@ -83,7 +83,7 @@ async def create_registered_test_user_manager(client):
     }
 
     # Регистрация
-    reg = await client.post('/users/register/', json=test_user_register_data)
+    reg = await client.post('/auth/register/', json=test_user_register_data)
     assert reg.status_code == 200
 
     # Обращение к тестовой бд, чтобы изменить роль на менеджера, т.к. в бекенде жестко вшивается роль member для каждого
