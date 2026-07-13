@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.api.router import router
 from app.api.users import users_router
+from app.api.teams import teams_router
 
 
 app = FastAPI()
@@ -14,3 +15,4 @@ async def root():
 
 app.include_router(router)
 app.include_router(users_router)
+app.include_router(teams_router)

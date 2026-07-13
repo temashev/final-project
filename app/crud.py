@@ -8,7 +8,6 @@ from sqlalchemy import select
 from app.db import models
 from app import schemas
 from app.db.models import BlackListTokens
-from app.schemas import UserPasswordChange
 from app.services.security import get_password_hash, decode_token
 
 
@@ -65,8 +64,11 @@ async def update_user_password(user: models.User, new_password: str, db: AsyncSe
     await db.commit()
     await db.refresh(user)
 
+
 # =========== USER SECTION ===========
+
 # ====================================
+
 # =========== TEAM SECTION ===========
 async def create_team(name: str, db: AsyncSession, current_user: models.User):
     new_team = models.Team(
