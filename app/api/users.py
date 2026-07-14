@@ -55,7 +55,7 @@ async def logout_user(token: str = Depends(oauth2_scheme), db: AsyncSession = De
 @users_router.post('/change-password/')
 async def change_password(
         password_data: UserPasswordChange,
-        current_user = Depends(get_current_user),
+        current_user=Depends(get_current_user),
         db: AsyncSession = Depends(get_db_session)
 ):
     raw_old_password = password_data.old_password.get_secret_value()
@@ -70,5 +70,5 @@ async def change_password(
 
 
 @users_router.get('/me/', response_model=UserResponse)
-async def get_my_profile(current_user = Depends(get_current_user)):
+async def get_my_profile(current_user=Depends(get_current_user)):
     return current_user

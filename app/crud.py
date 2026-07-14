@@ -166,4 +166,77 @@ async def update_members_role(
                 await db.refresh(member)
                 return member
 
+
 # =========== TEAM SECTION ===========
+# ====================================
+# =========== TASK SECTION ===========
+async def check_user_in_team(team_id: int, user_id: int, db: AsyncSession):
+    stmt = (select(models.TeamMember).where(models.TeamMember.team_id == team_id)
+            .where(models.TeamMember.user_id == user_id))
+    result = await db.execute(stmt)
+    members = result.scalar_one_or_none()
+    return members
+
+
+async def create_task(task_data: schemas.TaskCreate, db: AsyncSession, team_id: int):
+    """
+    Создание задачи
+    """
+    new_task = models.Task(
+        title=task_data.title,
+        description=task_data.description,
+        due_date=task_data.due_date,
+        user_id=task_data.user_id,
+        team_id=team_id,
+        status='To do'
+    )
+    db.add(new_task)
+    await db.commit()
+    await db.refresh(new_task)
+    return new_task
+
+
+async def get_tasks_by_team(team_id: int, db: AsyncSession):
+    """
+    Получение всех задач команды
+    """
+    stmt = select(models.Task).where(models.Task.team_id == team_id)
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
+async def get_task_by_id(task_id: int, team_id: int, db: AsyncSession):
+    """
+    Получение задачи по айди
+    """
+    stmt = select(models.Task).where(models.Task.id == task_id, models.Task.team_id == team_id)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def update_task(task_id: int, team_id: int, update_data: dict, db: AsyncSession):
+    """
+    Обновление задачи
+    """
+    task = await get_task_by_id(task_id=task_id, team_id=team_id, db=db)
+    if not task:
+        return None
+
+    for k, v in update_data.items():
+        setattr(task, k, v)
+
+    await db.commit()
+    await db.refresh(task)
+    return task
+
+
+async def delete_task(task_id: int, team_id: int, db: AsyncSession):
+    task = await get_task_by_id(task_id=task_id, team_id=team_id, db=db)
+    if not task:
+        return None
+
+    await db.delete(task)
+    await db.commit()
+    return True
+
+# =========== TASK SECTION ===========

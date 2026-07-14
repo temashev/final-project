@@ -1,5 +1,8 @@
+from datetime import datetime, date
+
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, SecretStr, field_validator, model_validator
-from typing import List, Literal
+from typing import List, Literal, Optional
+
 
 class UserRegister(BaseModel):
     email: EmailStr
@@ -72,3 +75,18 @@ class TeamMembers(BaseModel):
 
 class UpdateRoleRequest(BaseModel):
     role: Literal['manager', 'member']
+
+
+class TaskCreate(BaseModel):
+    title: str
+    description: str
+    due_date: date
+    user_id: int
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    due_date: Optional[date] = None
+    user_id: Optional[int] = None
+    status: Optional[str] = None

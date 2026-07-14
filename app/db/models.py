@@ -19,7 +19,6 @@ class TeamMember(Base):
     team: Mapped['Team'] = relationship(back_populates='members')
 
 
-
 class User(Base):
     __tablename__ = 'users'
 
@@ -51,6 +50,7 @@ class Task(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String)
+    description: Mapped[str] = mapped_column(String)
     status: Mapped[str] = mapped_column(String)
     due_date: Mapped[date] = mapped_column(Date)
 
@@ -67,8 +67,8 @@ class Meeting(Base):
     __tablename__ = 'meetings'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    starts_at: Mapped[datetime]  = mapped_column(DateTime)
-    ends_at: Mapped[datetime]  = mapped_column(DateTime)
+    starts_at: Mapped[datetime] = mapped_column(DateTime)
+    ends_at: Mapped[datetime] = mapped_column(DateTime)
 
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
     team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'))
