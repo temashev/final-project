@@ -41,9 +41,9 @@ class Team(Base):
     name: Mapped[str] = mapped_column(String)
     invite_code: Mapped[str] = mapped_column(String)
 
-    members: Mapped[list['TeamMember']] = relationship(back_populates='team')
-    tasks: Mapped[list['Task']] = relationship(back_populates='team')
-    meetings: Mapped[list['Meeting']] = relationship(back_populates='team')
+    members: Mapped[list['TeamMember']] = relationship(back_populates='team', cascade='all, delete-orphan')
+    tasks: Mapped[list['Task']] = relationship(back_populates='team', cascade='all, delete-orphan')
+    meetings: Mapped[list['Meeting']] = relationship(back_populates='team', cascade='all, delete-orphan')
 
 
 class Task(Base):
