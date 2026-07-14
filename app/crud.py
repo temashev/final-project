@@ -145,4 +145,25 @@ async def remove_member_from_team(team_id: int, user_id: int, db: AsyncSession, 
                 return team
     return None
 
+
+async def update_members_role(
+        team_id: int,
+        user_id: int,
+        new_role: str,
+        db: AsyncSession,
+        current_user: models.User):
+    stmt = select(models.Team).where(models.Team.id == team_id).options(selectinload(models.Team.members))
+    result = await db.execute(stmt)
+    team = result.scalar_one_or_none()
+    if not team:
+        return None
+
+    if current_user.role == 'manager':
+        for member in team.members:
+            if member.user_id == user_id:
+                member.role = new_role
+                await db.commit()
+                await db.refresh(member)
+                return member
+
 # =========== TEAM SECTION ===========

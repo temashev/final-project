@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, SecretStr, field_validator, model_validator
-from typing import List
+from typing import List, Literal
 
 class UserRegister(BaseModel):
     email: EmailStr
@@ -68,3 +68,7 @@ class TeamMembers(BaseModel):
     name: str
     invite_code: str
     members: List['UserResponse']
+
+
+class UpdateRoleRequest(BaseModel):
+    role: Literal['manager', 'member']
