@@ -98,7 +98,12 @@ async def get_team_by_team_id(team_id: int, db: AsyncSession, current_user: mode
     stmt = select(models.Team).where(models.Team.id == team_id).options(selectinload(models.Team.members))
     result = await db.execute(stmt)
     team = result.scalar_one_or_none()
-    if not team or current_user not in team.members:
+    if not team:
+        return None
+
+    member_ids = [member.id for member in team.members]
+
+    if current_user.role != 'manager' and current_user.id not in member_ids:
         return None
     return team
 
@@ -128,12 +133,14 @@ async def remove_member_from_team(team_id: int, user_id: int, db: AsyncSession, 
     stmt = select(models.Team).where(models.Team.id == team_id).options(selectinload(models.Team.members))
     result = await db.execute(stmt)
     team = result.scalar_one_or_none()
+
     if not team:
         return None
+
     if current_user.role == 'manager':
         for member in team.members:
-            if member.id == user_id:
-                team.members.remove(member)
+            if member.user_id == user_id:
+                await db.delete(member)
                 await db.commit()
                 return team
     return None
