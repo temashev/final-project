@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import create_team, get_team_by_invite_code, add_member_to_team, get_team_by_team_id, \
-    remove_member_from_team
+    remove_member_from_team, update_members_role
 from app.db.database import get_db_session
 from app.dependencies import get_current_manager, get_current_user
-from app.schemas import TeamCreate
+from app.schemas import TeamCreate, UpdateRoleRequest
 
 teams_router = APIRouter(prefix='/teams', tags=['Команды'])
 
@@ -37,7 +37,7 @@ async def join_team(
 @teams_router.get('/{team_id}/members/')
 async def get_team_members(
         team_id: int,
-        current_user = Depends(get_current_user),
+        current_user=Depends(get_current_user),
         db: AsyncSession = Depends(get_db_session)
 ):
     team = await get_team_by_team_id(team_id=team_id, db=db, current_user=current_user)
@@ -46,11 +46,11 @@ async def get_team_members(
     return team
 
 
-@teams_router.delete('/{team_id}/members/{user_id}')
+@teams_router.delete('/{team_id}/members/{user_id}/')
 async def delete_team_member(
         team_id: int,
         user_id: int,
-        current_user = Depends(get_current_user),
+        current_user=Depends(get_current_user),
         db: AsyncSession = Depends(get_db_session)
 ):
     team = await remove_member_from_team(team_id=team_id, current_user=current_user, user_id=user_id, db=db)
@@ -58,4 +58,27 @@ async def delete_team_member(
         raise HTTPException(status_code=404, detail=f'Команды с id:{team_id} не существует')
     return team
 
-## TODO: реализовать смену роли (менять может только менеджер)
+
+@teams_router.patch('/{team_id}/members/{user_id}/role/')
+async def change_members_role(
+        team_id: int,
+        user_id: int,
+        new_role: UpdateRoleRequest,
+        current_user=Depends(get_current_user),
+        db: AsyncSession = Depends(get_db_session)
+):
+    updated_member = await update_members_role(
+        team_id=team_id,
+        user_id=user_id,
+        new_role=new_role.role,
+        current_user=current_user,
+        db=db
+    )
+
+    if not updated_member:
+        raise HTTPException(
+            status_code=404,
+            detail='Команда не найдена, пользователя нет в списке или у вас недостаточно прав'
+        )
+
+    return updated_member

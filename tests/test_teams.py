@@ -126,7 +126,7 @@ async def test_delete_team_member_by_manager_success(client, create_registered_t
     me_res = await client.get('/users/me/', headers=member_headers)
     member_id = me_res.json()['id']
 
-    del_res = await client.delete(f'/teams/{team_id}/members/{member_id}', headers=manager_headers)
+    del_res = await client.delete(f'/teams/{team_id}/members/{member_id}/', headers=manager_headers)
 
     assert del_res.status_code == 200
 
@@ -154,6 +154,115 @@ async def test_delete_team_member_by_member_fails(client, create_registered_test
     me_res = await client.get('/users/me/', headers=member_headers)
     member_id = me_res.json()['id']
 
-    del_res = await client.delete(f'/teams/{team_id}/members/{member_id}', headers=member_headers)
+    del_res = await client.delete(f'/teams/{team_id}/members/{member_id}/', headers=member_headers)
 
     assert del_res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_change_member_role_by_manager_success(
+        client,
+        create_registered_test_user_manager,
+        create_registered_test_user_member
+):
+    """
+    Тест на успешное изменение роли участника менеджером команды
+    """
+    manager_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_manager}'
+    }
+    member_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_member}'
+    }
+
+    team_res = await client.post('/teams/create_team/', json={'name': 'Role Team'}, headers=manager_headers)
+    team_data = team_res.json()
+    team_id = team_data['id']
+    invite_code = team_data['invite_code']
+
+    await client.post(f'/teams/{invite_code}/join/', headers=member_headers)
+
+    me_res = await client.get('/users/me/', headers=member_headers)
+    member_id = me_res.json()['id']
+
+    response = await client.patch(
+        f'/teams/{team_id}/members/{member_id}/role/',
+        json={'role': 'manager'},
+        headers=manager_headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()['role'] == 'manager'
+
+
+@pytest.mark.asyncio
+async def test_change_member_role_by_member_fails(
+        client,
+        create_registered_test_user_manager,
+        create_registered_test_user_member
+):
+    """
+    Тест может ли обычный участник роли
+    """
+    manager_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_manager}'
+    }
+    member_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_member}'
+    }
+
+    team_res = await client.post('/teams/create_team/', json={'name': 'Role Team'}, headers=manager_headers)
+    team_data = team_res.json()
+    team_id = team_data['id']
+    invite_code = team_data['invite_code']
+
+    await client.post(f'/teams/{invite_code}/join/', headers=member_headers)
+
+    me_res = await client.get('/users/me/', headers=member_headers)
+    member_id = me_res.json()['id']
+
+    response = await client.patch(
+        f'/teams/{team_id}/members/{member_id}/role/',
+        json={'role': 'manager'},
+        headers=member_headers
+    )
+
+    # 404, т.к. обычный участник не имеет прав
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_change_member_role_invalid_value(
+        client,
+        create_registered_test_user_manager,
+        create_registered_test_user_member
+):
+    """
+    Тест на валидация пайдантик (UpdateRoleRequest с Literal[])
+    """
+    manager_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_manager}'
+    }
+    member_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_member}'
+    }
+
+    team_res = await client.post('/teams/create_team/', json={'name': 'Role Team'}, headers=manager_headers)
+    team_data = team_res.json()
+    team_id = team_data['id']
+    invite_code = team_data['invite_code']
+
+    await client.post(f'/teams/{invite_code}/join/', headers=member_headers)
+
+    me_res = await client.get('/users/me/', headers=member_headers)
+    member_id = me_res.json()['id']
+
+    # Попытка установить недопустимую роль (admin вместо manager/member)
+    response = await client.patch(
+        f'/teams/{team_id}/members/{member_id}/role/',
+        json={'role': 'admin'},
+        headers=manager_headers
+    )
+
+    # Ошибка валидации пайдантик (422)
+    assert response.status_code == 422
