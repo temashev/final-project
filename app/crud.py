@@ -167,10 +167,26 @@ async def update_members_role(
                 return member
 
 
+async def leave_team(team_id: int, user_id: int, db: AsyncSession):
+    stmt = select(models.TeamMember).where(
+        models.TeamMember.team_id == team_id, models.TeamMember.user_id == user_id
+    )
+    result = await db.execute(stmt)
+    member = result.scalar_one_or_none()
+
+    if not member:
+        return False
+    await db.delete(member)
+    await db.commit()
+    return True
+
 # =========== TEAM SECTION ===========
 # ====================================
 # =========== TASK SECTION ===========
 async def check_user_in_team(team_id: int, user_id: int, db: AsyncSession):
+    """
+    Проверка состоит ли юзер в команде
+    """
     stmt = (select(models.TeamMember).where(models.TeamMember.team_id == team_id)
             .where(models.TeamMember.user_id == user_id))
     result = await db.execute(stmt)
@@ -231,6 +247,9 @@ async def update_task(task_id: int, team_id: int, update_data: dict, db: AsyncSe
 
 
 async def delete_task(task_id: int, team_id: int, db: AsyncSession):
+    """
+    Удаление задачи
+    """
     task = await get_task_by_id(task_id=task_id, team_id=team_id, db=db)
     if not task:
         return None
