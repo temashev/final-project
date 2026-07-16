@@ -4,7 +4,7 @@ import pytest
 @pytest.mark.asyncio
 async def test_register_team_by_member(client, create_registered_test_user_member):
     """
-    Тест на регистрацию команды ролью обвчного юзера (member`a)
+    Тест на регистрацию команды ролью обычного юзера (member`a)
     """
     payload = {
         'name': 'Test team 1',
@@ -64,6 +64,23 @@ async def test_join_by_invite_code(client, create_registered_test_user_manager, 
 
 
 @pytest.mark.asyncio
+async def test_join_team_not_found(client, create_registered_test_user_member):
+    """
+    Тест на попытку присоединиться к несуществующей команде
+    """
+    headers = {
+        'Authorization': f'Bearer {create_registered_test_user_member}'
+    }
+
+    fake_invite_code = "code_does_not_exist"
+
+    response = await client.post(f'/teams/{fake_invite_code}/join/', headers=headers)
+
+    assert response.status_code == 403
+    assert response.json()['detail'] == 'Команды не существует'
+
+
+@pytest.mark.asyncio
 async def test_get_team_members_success(client, create_registered_test_user_manager):
     """
     Тест на получение списка участников команды менеджером (владельцем)
@@ -87,7 +104,7 @@ async def test_get_team_members_success(client, create_registered_test_user_mana
 async def test_get_team_members_forbidden_for_outsider(client, create_registered_test_user_manager,
                                                        create_registered_test_user_member):
     """
-    Тест может ли НЕ участник команды просматривать состав команды
+    Тест может ли НЕ участник команды просматривать состав другой команды
     """
     manager_headers = {
         'Authorization': f'Bearer {create_registered_test_user_manager}'
