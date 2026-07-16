@@ -2,10 +2,10 @@ from fastapi import Depends, APIRouter, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse
 
-from app.crud import create_user, get_user_by_email, add_token_to_blacklist, update_user_password
+from app.crud import create_user, get_user_by_email, add_token_to_blacklist, update_user_password, update_user_profile
 from app.db.database import get_db_session
 from app.dependencies import oauth2_scheme, get_current_user
-from app.schemas import UserRegister, UserResponse, UserLogin, UserPasswordChange
+from app.schemas import UserRegister, UserResponse, UserLogin, UserPasswordChange, UserProfileUpdate
 from app.services.security import verify_password, create_access_token
 
 users_router = APIRouter(prefix='/users', tags=['Пользователи'])
@@ -72,3 +72,23 @@ async def change_password(
 @users_router.get('/me/', response_model=UserResponse)
 async def get_my_profile(current_user=Depends(get_current_user)):
     return current_user
+
+
+@users_router.patch('/update-profile')
+async def update_profile(
+        updated_data: UserProfileUpdate,
+        current_user=Depends(get_current_user),
+        db: AsyncSession = Depends(get_db_session),
+
+):
+    update_dict = updated_data.model_dump(exclude_unset=True)
+
+    updated_user = await update_user_profile(user=current_user, updated_data=update_dict, db=db)
+
+    if not updated_user:
+        raise HTTPException(
+            status_code=404,
+            detail='Пользователь не найден или у вас недостаточно прав'
+        )
+
+    return updated_user

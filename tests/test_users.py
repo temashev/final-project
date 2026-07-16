@@ -85,3 +85,37 @@ async def test_get_user_profile(client, create_registered_test_user_member, uniq
     response = await client.get('/users/me/', headers=users_headers)
     assert response.status_code == 200
     assert 'email' in response.json()
+
+
+@pytest.mark.asyncio
+async def test_update_profile_success(client, create_registered_test_user_member):
+    users_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_member}'
+    }
+
+    payload = {
+        'full_name': 'Обновленное Имя',
+        'email': 'updated_email@example.com'
+    }
+
+    response = await client.patch('/users/update-profile', json=payload, headers=users_headers)
+
+    assert response.status_code == 200
+    assert response.json()['full_name'] == 'Обновленное Имя'
+    assert response.json()['email'] == 'updated_email@example.com'
+
+
+@pytest.mark.asyncio
+async def test_update_profile_invalid_email(client, create_registered_test_user_member):
+    users_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_member}'
+    }
+
+    payload = {
+        'email': 'bad-email'
+    }
+
+    response = await client.patch('/users/update-profile', json=payload, headers=users_headers)
+
+    assert response.status_code == 422
+    assert 'detail' in response.json()

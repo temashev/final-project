@@ -66,6 +66,21 @@ async def update_user_password(user: models.User, new_password: str, db: AsyncSe
     await db.refresh(user)
 
 
+async def update_user_profile(user: models.User, updated_data: dict, db: AsyncSession):
+    """
+    Обновление профиля юзера
+    """
+    if not user:
+        return None
+
+    for k, v in updated_data.items():
+        setattr(user, k, v)
+
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
 # =========== USER SECTION ===========
 
 # ====================================
@@ -179,6 +194,7 @@ async def leave_team(team_id: int, user_id: int, db: AsyncSession):
     await db.delete(member)
     await db.commit()
     return True
+
 
 # =========== TEAM SECTION ===========
 # ====================================

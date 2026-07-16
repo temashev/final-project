@@ -101,3 +101,45 @@ async def create_registered_test_user_manager(register_user):
     )
 
     return test_token
+
+
+@pytest.fixture
+async def test_team_with_member(unique_email, create_registered_test_user_member):
+    """
+    Создает команду и сразу добавляет в нее тестового пользователя
+    """
+    async with TestingSessionLocal() as session:
+        res = await session.execute(select(User).where(User.email == unique_email))
+        db_user = res.scalar_one_or_none()
+
+        new_team = Team(name="Тестовая команда", invite_code=uuid.uuid4().hex[:8])
+        session.add(new_team)
+        await session.flush()
+
+        new_member = TeamMember(team_id=new_team.id, user_id=db_user.id)
+        session.add(new_member)
+
+        await session.commit()
+        await session.refresh(new_team)
+
+        return new_team
+
+
+@pytest.fixture
+async def test_team_with_manager(create_registered_test_user_manager):
+
+    async with TestingSessionLocal() as session:
+        res = await session.execute(select(User).where(User.role == 'manager'))
+        db_user = res.scalars().all()[-1]
+
+        new_team = Team(name="Команда менеджера", invite_code=uuid.uuid4().hex[:8])
+        session.add(new_team)
+        await session.flush()
+
+        new_member = TeamMember(team_id=new_team.id, user_id=db_user.id)
+        session.add(new_member)
+
+        await session.commit()
+        await session.refresh(new_team)
+
+        return new_team

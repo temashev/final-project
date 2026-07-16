@@ -63,6 +63,11 @@ class UserPasswordChange(BaseModel):
         return self
 
 
+class UserProfileUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+
+
 class TeamCreate(BaseModel):
     name: str
 
