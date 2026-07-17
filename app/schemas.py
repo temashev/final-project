@@ -95,3 +95,14 @@ class TaskUpdate(BaseModel):
     due_date: Optional[date] = None
     user_id: Optional[int] = None
     status: Optional[str] = None
+
+
+class CommentCreate(BaseModel):
+    text: str
+
+
+class CommentResponse(BaseModel):
+    id: int
+    text: str
+    created_at: datetime
+    username: str   # тут будет full_name

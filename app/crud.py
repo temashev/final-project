@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, exists
 from sqlalchemy.orm import selectinload
 
 from app.db import models
@@ -123,6 +123,18 @@ async def get_team_by_team_id(team_id: int, db: AsyncSession, current_user: mode
     return team
 
 
+async def check_user_in_team(team_id: int, current_user: models.User, db: AsyncSession):
+    stmt = select(
+        exists().where(
+            models.TeamMember.team_id == team_id,
+            models.TeamMember.user_id == current_user.id
+        )
+    )
+    result = await db.execute(stmt)
+
+    return result.scalar()
+
+
 async def get_team_by_invite_code(invite_code: str, db: AsyncSession):
     stmt = select(models.Team).where(models.Team.invite_code == invite_code)
     result = await db.execute(stmt)
@@ -157,6 +169,7 @@ async def remove_member_from_team(team_id: int, user_id: int, db: AsyncSession, 
             if member.user_id == user_id:
                 await db.delete(member)
                 await db.commit()
+                await db.refresh(team)
                 return team
     return None
 
@@ -199,17 +212,7 @@ async def leave_team(team_id: int, user_id: int, db: AsyncSession):
 # =========== TEAM SECTION ===========
 # ====================================
 # =========== TASK SECTION ===========
-async def check_user_in_team(team_id: int, user_id: int, db: AsyncSession):
-    """
-    Проверка состоит ли юзер в команде
-    """
-    stmt = (select(models.TeamMember).where(models.TeamMember.team_id == team_id)
-            .where(models.TeamMember.user_id == user_id))
-    result = await db.execute(stmt)
-    members = result.scalar_one_or_none()
-    return members
-
-
+## TODO: прикрутить статусы
 async def create_task(task_data: schemas.TaskCreate, db: AsyncSession, team_id: int):
     """
     Создание задачи
@@ -273,5 +276,45 @@ async def delete_task(task_id: int, team_id: int, db: AsyncSession):
     await db.delete(task)
     await db.commit()
     return True
+
+
+async def create_comment(
+        comment_data: schemas.CommentCreate,
+        db: AsyncSession,
+        team_id: int,
+        task_id: int,
+        user_id: int
+):
+    """
+    Создание комментария
+    """
+    new_comment = models.Comment(
+        text=comment_data.text,
+        created_at=datetime.now(),
+        user_id=user_id,
+        team_id=team_id,
+        task_id=task_id
+    )
+    db.add(new_comment)
+    await db.commit()
+    await db.refresh(new_comment)
+    return new_comment
+
+
+async def show_comments_list(task_id: int, team_id: int, db: AsyncSession):
+    stmt = select(models.Comment).where(
+        models.Comment.team_id == team_id, models.Comment.task_id == task_id
+    ).options(selectinload(models.Comment.user))
+    result = await db.execute(stmt)
+    comments = result.scalars().all()
+    full_response = [
+        schemas.CommentResponse(
+            id=comment.id,
+            text=comment.text,
+            created_at=comment.created_at,
+            username=comment.user.full_name
+        ) for comment in comments
+    ]
+    return full_response
 
 # =========== TASK SECTION ===========

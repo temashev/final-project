@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import create_team, get_team_by_invite_code, add_member_to_team, get_team_by_team_id, \
-    remove_member_from_team, update_members_role, leave_team
+    remove_member_from_team, update_members_role, leave_team, check_user_in_team
 from app.db.database import get_db_session
 from app.dependencies import get_current_manager, get_current_user
-from app.schemas import TeamCreate, UpdateRoleRequest
+from app.schemas import TeamCreate, UpdateRoleRequest, TeamMembers
 
 teams_router = APIRouter(prefix='/teams', tags=['Команды'])
 
@@ -29,6 +29,8 @@ async def join_team(
     team = await get_team_by_invite_code(invite_code=invite_code, db=db)
     if team is None:
         raise HTTPException(status_code=403, detail='Команды не существует')
+    if await check_user_in_team(team_id=team.id, current_user=current_user, db=db):
+        raise HTTPException(status_code=409, detail='Вы уже в этой команде')
     new_member = await add_member_to_team(current_user=current_user, team=team, db=db)
 
     return new_member
@@ -36,7 +38,7 @@ async def join_team(
 
 @teams_router.get('/{team_id}/members/')
 async def get_team_members(
-        team_id: int,
+        team_id: int = Path(le=2147483647, ge=1),  # чтобы не было 500 ошибки при больших или числах <0
         current_user=Depends(get_current_user),
         db: AsyncSession = Depends(get_db_session)
 ):
@@ -46,10 +48,10 @@ async def get_team_members(
     return team
 
 
-@teams_router.delete('/{team_id}/members/{user_id}/')
+@teams_router.delete('/{team_id}/members/{user_id}/', response_model=TeamMembers)
 async def delete_team_member(
-        team_id: int,
-        user_id: int,
+        team_id: int = Path(le=2147483647, ge=1),  # чтобы не было 500 ошибки при больших или числах <0
+        user_id: int = Path(le=2147483647, ge=1),
         current_user=Depends(get_current_user),
         db: AsyncSession = Depends(get_db_session)
 ):
@@ -61,9 +63,9 @@ async def delete_team_member(
 
 @teams_router.patch('/{team_id}/members/{user_id}/role/')
 async def change_members_role(
-        team_id: int,
-        user_id: int,
         new_role: UpdateRoleRequest,
+        team_id: int = Path(le=2147483647, ge=1),
+        user_id: int = Path(le=2147483647, ge=1),
         current_user=Depends(get_current_user),
         db: AsyncSession = Depends(get_db_session)
 ):
@@ -86,7 +88,7 @@ async def change_members_role(
 
 @teams_router.delete('/{team_id}/leave/')
 async def leave_from_team(
-        team_id: int,
+        team_id: int = Path(le=2147483647, ge=1),
         current_user=Depends(get_current_user),
         db: AsyncSession = Depends(get_db_session)
 ):

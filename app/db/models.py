@@ -30,6 +30,7 @@ class User(Base):
 
     team_membership: Mapped[list['TeamMember']] = relationship(back_populates='user')
     tasks: Mapped[list['Task']] = relationship(back_populates='user')
+    comments: Mapped[list['Comment']] = relationship(back_populates='user')
     meetings: Mapped[list['Meeting']] = relationship(back_populates='user')
 
 
@@ -42,6 +43,7 @@ class Team(Base):
 
     members: Mapped[list['TeamMember']] = relationship(back_populates='team', cascade='all, delete-orphan')
     tasks: Mapped[list['Task']] = relationship(back_populates='team', cascade='all, delete-orphan')
+    comments: Mapped[list['Comment']] = relationship(back_populates='team', cascade='all, delete-orphan')
     meetings: Mapped[list['Meeting']] = relationship(back_populates='team', cascade='all, delete-orphan')
 
 
@@ -59,8 +61,26 @@ class Task(Base):
 
     user: Mapped['User'] = relationship(back_populates='tasks')
     team: Mapped['Team'] = relationship(back_populates='tasks')
+    comments: Mapped[list['Comment']] = relationship(back_populates='task', cascade='all, delete-orphan')
 
     evaluation: Mapped['Evaluation | None'] = relationship(back_populates='task')
+
+
+class Comment(Base):
+    __tablename__ = 'comments'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    text: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'))
+    task_id: Mapped[int] = mapped_column(ForeignKey('tasks.id'))
+
+    user: Mapped['User'] = relationship(back_populates='comments')
+    team: Mapped['Team'] = relationship(back_populates='comments')
+    task: Mapped['Task'] = relationship(back_populates='comments')
 
 
 class Meeting(Base):

@@ -1,4 +1,5 @@
 from fastapi import Depends, APIRouter, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse
 
@@ -26,11 +27,14 @@ async def register_user(user: UserRegister, db: AsyncSession = Depends(get_db_se
 
 
 @auth_router.post('/login/')
-async def login_user(user: UserLogin, db: AsyncSession = Depends(get_db_session)):
-    user_data = await get_user_by_email(db=db, email=user.email)
+async def login_user(
+        form_data: OAuth2PasswordRequestForm = Depends(),
+        db: AsyncSession = Depends(get_db_session)
+):
+    user_data = await get_user_by_email(db=db, email=form_data.username)
     if not user_data:
         raise HTTPException(status_code=401, detail='Неверный email или пароль')
-    raw_password = user.password.get_secret_value()
+    raw_password = form_data.password
     if not verify_password(raw_password, user_data.password):
         raise HTTPException(status_code=401, detail='Неверный email или пароль')
 

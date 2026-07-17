@@ -6,7 +6,7 @@ from app.db.database import get_db_session
 from app.services.security import decode_token
 from app.db import models
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/users/login/')
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login/')
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db=Depends(get_db_session)):
@@ -17,7 +17,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db=Depends(get_d
     )
 
     payload = decode_token(token)
-    email = payload.get('sub')
+    email = payload.get('email')
 
     # Если имейла нет - ошибка
     if email is None:
