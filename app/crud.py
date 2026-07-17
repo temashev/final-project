@@ -12,6 +12,37 @@ from app.db.models import BlackListTokens
 from app.services.security import get_password_hash, decode_token
 
 
+async def check_user_in_team(team_id: int, user_id: int, db: AsyncSession):
+    """
+    Вспомогательня функция для проверки находится ли юзер в этой команде
+    """
+    stmt = select(
+        exists().where(
+            models.TeamMember.team_id == team_id,
+            models.TeamMember.user_id == user_id
+        )
+    )
+    result = await db.execute(stmt)
+
+    return result.scalar()
+
+
+async def check_is_user_team_manager(team_id: int, user_id: int, db: AsyncSession):
+    """
+    Вспомогательная функция для проверки является ли юзер менеджером этой команды
+    """
+    stmt = select(
+        exists().where(
+            models.TeamMember.team_id == team_id,
+            models.TeamMember.user_id == user_id,
+            models.TeamMember.role == 'manager'
+        )
+    )
+    result = await db.execute(stmt)
+
+    return result.scalar()
+
+
 # =========== USER SECTION ===========
 async def create_user(db: AsyncSession, user_in: schemas.UserRegister):
     raw_password = user_in.password.get_secret_value()
@@ -81,6 +112,36 @@ async def update_user_profile(user: models.User, updated_data: dict, db: AsyncSe
     return user
 
 
+async def get_user_profile_data(user_id: int, db: AsyncSession):
+    stmt = select(models.User).where(
+        models.User.id == user_id
+    ).options(selectinload(models.User.tasks).selectinload(models.Task.evaluation))
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        return None
+
+    evaluations = []
+    for task in user.tasks:
+        if task.evaluation is not None:
+            evaluations.append(task.evaluation)
+
+    avg_eval = 0.0
+    if len(evaluations) > 0:
+        scores = sum(eval.score for eval in evaluations)
+        avg_eval = scores / len(evaluations)
+
+    return {
+        'id': user.id,
+        'email': user.email,
+        'full_name': user.full_name,
+        'role': user.role,
+        'avg_score': avg_eval,
+        'evaluations': evaluations
+    }
+
+
 # =========== USER SECTION ===========
 
 # ====================================
@@ -121,18 +182,6 @@ async def get_team_by_team_id(team_id: int, db: AsyncSession, current_user: mode
     if current_user.role != 'manager' and current_user.id not in member_ids:
         return None
     return team
-
-
-async def check_user_in_team(team_id: int, user_id: int, db: AsyncSession):
-    stmt = select(
-        exists().where(
-            models.TeamMember.team_id == team_id,
-            models.TeamMember.user_id == user_id
-        )
-    )
-    result = await db.execute(stmt)
-
-    return result.scalar()
 
 
 async def get_team_by_invite_code(invite_code: str, db: AsyncSession):
@@ -231,7 +280,7 @@ async def create_task(task_data: schemas.TaskCreate, db: AsyncSession, team_id: 
         due_date=task_data.due_date,
         user_id=user_id,
         team_id=team_id,
-        status='To do'
+        status=task_data.status
     )
     db.add(new_task)
     await db.commit()
@@ -252,7 +301,9 @@ async def get_task_by_id(task_id: int, team_id: int, db: AsyncSession):
     """
     Получение задачи по айди
     """
-    stmt = select(models.Task).where(models.Task.id == task_id, models.Task.team_id == team_id)
+    stmt = select(models.Task).where(
+        models.Task.id == task_id, models.Task.team_id == team_id
+    ).options(selectinload(models.Task.evaluation))
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
@@ -324,5 +375,31 @@ async def show_comments_list(task_id: int, team_id: int, db: AsyncSession):
         ) for comment in comments
     ]
     return full_response
+
+
+async def create_evaluation(
+        task_id: int,
+        team_id: int,
+        eval_data: schemas.EvaluationCreate,
+        db: AsyncSession
+):
+    task = await get_task_by_id(task_id=task_id, team_id=team_id, db=db)
+
+    if task.evaluation:
+        task.evaluation.score = eval_data.score
+        task.evaluation.comment = eval_data.comment
+        await db.commit()
+        return task.evaluation
+
+    new_evaluation = models.Evaluation(
+        score=eval_data.score,
+        comment=eval_data.comment,
+        task_id=task_id
+    )
+
+    db.add(new_evaluation)
+    await db.commit()
+    await db.refresh(new_evaluation)
+    return new_evaluation
 
 # =========== TASK SECTION ===========

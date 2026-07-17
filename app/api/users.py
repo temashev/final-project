@@ -3,7 +3,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse
 
-from app.crud import create_user, get_user_by_email, add_token_to_blacklist, update_user_password, update_user_profile
+from app.crud import create_user, get_user_by_email, add_token_to_blacklist, update_user_password, update_user_profile, \
+    get_user_profile_data
 from app.db.database import get_db_session
 from app.dependencies import oauth2_scheme, get_current_user
 from app.schemas import UserRegister, UserResponse, UserLogin, UserPasswordChange, UserProfileUpdate
@@ -74,8 +75,9 @@ async def change_password(
 
 
 @users_router.get('/me/', response_model=UserResponse)
-async def get_my_profile(current_user=Depends(get_current_user)):
-    return current_user
+async def get_my_profile(current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db_session)):
+    user = await get_user_profile_data(user_id=current_user.id, db=db)
+    return user
 
 
 @users_router.patch('/update-profile')

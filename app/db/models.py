@@ -53,7 +53,7 @@ class Task(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(String)
-    status: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, default='open')
     due_date: Mapped[date] = mapped_column(Date)
 
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))

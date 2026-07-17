@@ -2,10 +2,10 @@ from fastapi import Depends, HTTPException, APIRouter, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import create_task, get_tasks_by_team, update_task, delete_task, check_user_in_team, create_comment, \
-    show_comments_list
+    show_comments_list, create_evaluation, check_is_user_team_manager, get_task_by_id
 from app.db.database import get_db_session
 from app.dependencies import get_current_user
-from app.schemas import TaskCreate, TaskUpdate, CommentCreate, CommentResponse
+from app.schemas import TaskCreate, TaskUpdate, CommentCreate, CommentResponse, EvaluationCreate
 
 task_router = APIRouter(prefix='/teams', tags=['Задачи'])
 
@@ -123,3 +123,28 @@ async def show_comments(
 
     comments = await show_comments_list(team_id=team_id, task_id=task_id, db=db)
     return comments
+
+
+@task_router.post('/{team_id}/tasks/{task_id}/evaluation')
+async def add_evaluation(
+        eval_data: EvaluationCreate,
+        team_id: int = Path(le=2147483647, ge=1),
+        task_id: int = Path(le=2147483647, ge=1),
+        current_user=Depends(get_current_user),
+        db: AsyncSession = Depends(get_db_session)
+):
+    manager = await check_is_user_team_manager(team_id=team_id, user_id=current_user.id, db=db)
+    if not manager:
+        raise HTTPException(status_code=403, detail='У вас нет доступа к задачам команды')
+
+    task = await get_task_by_id(team_id=team_id, task_id=task_id, db=db)
+    if task.status != 'done':
+        raise HTTPException(status_code=403, detail='Задача еще не закрыта')
+
+    new_evaluation = await create_evaluation(
+        task_id=task_id,
+        team_id=team_id,
+        eval_data=eval_data,
+        db=db
+    )
+    return new_evaluation

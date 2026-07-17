@@ -27,11 +27,23 @@ class UserRegister(BaseModel):
         return self
 
 
+class EvaluationCreate(BaseModel):
+    score: int = Field(ge=1, le=5)
+    comment: str
+
+
+class EvaluationResponse(BaseModel):
+    score: int
+    comment: str
+
+
 class UserResponse(BaseModel):
     id: int
     email: EmailStr
     full_name: str
     role: str
+    avg_score: float
+    evaluations: list[EvaluationResponse]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -95,14 +107,13 @@ class TaskCreate(BaseModel):
     title: str
     description: str
     due_date: date
-    user_id: int
+    status: Literal['open', 'in_progress', 'done'] = 'open'
 
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     due_date: Optional[date] = None
-    user_id: Optional[int] = None
     status: Optional[str] = None
 
 
@@ -114,4 +125,4 @@ class CommentResponse(BaseModel):
     id: int
     text: str
     created_at: datetime
-    username: str   # тут будет full_name
+    username: str  # тут будет full_name
