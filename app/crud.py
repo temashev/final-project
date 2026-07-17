@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, exists
+from sqlalchemy import select, exists, delete
 from sqlalchemy.orm import selectinload
 
 from app.db import models
@@ -123,11 +123,11 @@ async def get_team_by_team_id(team_id: int, db: AsyncSession, current_user: mode
     return team
 
 
-async def check_user_in_team(team_id: int, current_user: models.User, db: AsyncSession):
+async def check_user_in_team(team_id: int, user_id: int, db: AsyncSession):
     stmt = select(
         exists().where(
             models.TeamMember.team_id == team_id,
-            models.TeamMember.user_id == current_user.id
+            models.TeamMember.user_id == user_id
         )
     )
     result = await db.execute(stmt)
@@ -157,20 +157,31 @@ async def add_member_to_team(current_user: models.User, team: models.Team, db: A
 
 
 async def remove_member_from_team(team_id: int, user_id: int, db: AsyncSession, current_user: models.User):
-    stmt = select(models.Team).where(models.Team.id == team_id).options(selectinload(models.Team.members))
+    stmt = (
+        select(models.Team)
+        .where(models.Team.id == team_id)
+        .options(
+            selectinload(models.Team.members).joinedload(models.TeamMember.user)
+        )
+    )
     result = await db.execute(stmt)
     team = result.scalar_one_or_none()
 
     if not team:
         return None
 
-    if current_user.role == 'manager':
-        for member in team.members:
-            if member.user_id == user_id:
-                await db.delete(member)
-                await db.commit()
-                await db.refresh(team)
-                return team
+    is_manager = any(m.user_id == current_user.id and m.role == 'manager' for m in team.members)
+    if not is_manager:
+        return None
+
+    member_to_remove = next((m for m in team.members if m.user_id == user_id), None)
+    if member_to_remove:
+        await db.delete(member_to_remove)
+        await db.commit()
+        await db.refresh(team)
+        team.members = [member.user for member in team.members if member.user_id != user_id]
+        return team
+
     return None
 
 
@@ -196,24 +207,21 @@ async def update_members_role(
 
 
 async def leave_team(team_id: int, user_id: int, db: AsyncSession):
-    stmt = select(models.TeamMember).where(
-        models.TeamMember.team_id == team_id, models.TeamMember.user_id == user_id
+    stmt = delete(models.TeamMember).where(
+        models.TeamMember.team_id == team_id,
+        models.TeamMember.user_id == user_id
     )
     result = await db.execute(stmt)
-    member = result.scalar_one_or_none()
-
-    if not member:
-        return False
-    await db.delete(member)
     await db.commit()
-    return True
+
+    return result.rowcount > 0
 
 
 # =========== TEAM SECTION ===========
 # ====================================
 # =========== TASK SECTION ===========
 ## TODO: прикрутить статусы
-async def create_task(task_data: schemas.TaskCreate, db: AsyncSession, team_id: int):
+async def create_task(task_data: schemas.TaskCreate, db: AsyncSession, team_id: int, user_id: int):
     """
     Создание задачи
     """
@@ -221,7 +229,7 @@ async def create_task(task_data: schemas.TaskCreate, db: AsyncSession, team_id: 
         title=task_data.title,
         description=task_data.description,
         due_date=task_data.due_date,
-        user_id=task_data.user_id,
+        user_id=user_id,
         team_id=team_id,
         status='To do'
     )

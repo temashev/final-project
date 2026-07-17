@@ -22,7 +22,7 @@ async def add_task(
     if not member:
         raise HTTPException(status_code=403, detail='У вас нет доступа к задачам команды')
 
-    new_task = await create_task(db=db, task_data=task_data, team_id=team_id)
+    new_task = await create_task(db=db, task_data=task_data, team_id=team_id, user_id=current_user.id)
     return new_task
 
 
@@ -102,7 +102,7 @@ async def add_comment(
     new_comment = await create_comment(
         db=db,
         team_id=team_id,
-        user_id=member.user_id,
+        user_id=current_user.id,
         task_id=task_id,
         comment_data=comment_data
     )

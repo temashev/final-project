@@ -75,7 +75,16 @@ class TeamCreate(BaseModel):
 class TeamMembers(BaseModel):
     name: str
     invite_code: str
-    members: List['UserResponse']
+    members: List['TeamMemberResponse']
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TeamMemberResponse(BaseModel):
+    role: str
+    user: UserResponse
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UpdateRoleRequest(BaseModel):

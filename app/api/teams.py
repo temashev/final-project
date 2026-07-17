@@ -29,7 +29,7 @@ async def join_team(
     team = await get_team_by_invite_code(invite_code=invite_code, db=db)
     if team is None:
         raise HTTPException(status_code=403, detail='Команды не существует')
-    if await check_user_in_team(team_id=team.id, current_user=current_user, db=db):
+    if await check_user_in_team(team_id=team.id, user_id=current_user.id, db=db):
         raise HTTPException(status_code=409, detail='Вы уже в этой команде')
     new_member = await add_member_to_team(current_user=current_user, team=team, db=db)
 
