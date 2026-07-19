@@ -1,13 +1,15 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi.params import Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import check_is_user_team_manager, check_date, create_meeting, check_user_in_team, get_meetings_by_team, \
-    delete_meeting, update_meeting, get_meeting_by_id, normalize_datetime, check_users_in_team, meeting_to_response
+    delete_meeting, update_meeting, get_meeting_by_id, normalize_datetime, check_users_in_team, meeting_to_response, \
+    get_calendar
 from app.db.database import get_db_session
 from app.dependencies import get_current_user
-from app.schemas import MeetingResponse, MeetingUpdate, MeetingCreate
+from app.schemas import MeetingResponse, MeetingUpdate, MeetingCreate, MeetingMemberResponse
 
 meet_router = APIRouter(prefix='/teams', tags=['Встречи'])
 
@@ -127,3 +129,34 @@ async def meeting_update(
         organizer_id=updated_meeting.organizer_id,
         organizer_name=updated_meeting.organizer.full_name
     )
+
+
+@meet_router.get('/{team_id}/calendar/', response_model=list[MeetingResponse])
+async def calendar(
+        team_id: int = Path(le=2147483647, ge=1),
+        from_date: date = Query(..., alias='from'),
+        to_date: date = Query(..., alias='to'),
+        current_user=Depends(get_current_user),
+        db: AsyncSession = Depends(get_db_session)
+):
+    manager = await check_user_in_team(team_id=team_id, user_id=current_user.id, db=db)
+
+    if not manager:
+        raise HTTPException(status_code=403, detail='У вас нет доступа к календарю команды')
+
+    if from_date >= to_date:
+        raise HTTPException(status_code=400, detail='Некорректный диапазон дат')
+
+    meetings = await get_calendar(team_id=team_id, from_date=from_date, to_date=to_date, db=db)
+
+    return [MeetingResponse(
+        id=meeting.id,
+        starts_at=meeting.starts_at,
+        ends_at=meeting.ends_at,
+        organizer_id=meeting.organizer_id,
+        organizer_name=meeting.organizer.full_name,
+        members=[MeetingMemberResponse(
+            id=item.user.id,
+            full_name=item.user.full_name
+        ) for item in meeting.team_meetings_details]
+    ) for meeting in meetings]

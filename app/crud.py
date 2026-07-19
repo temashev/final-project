@@ -1,6 +1,6 @@
 import uuid
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -581,4 +581,19 @@ async def update_meeting(meeting_id: int, team_id: int, update_data: dict, db: A
         team_id=team_id,
         db=db
     )
+
+
+async def get_calendar(team_id: int, from_date: date, to_date: date, db: AsyncSession):
+    stmt = select(models.Meeting).where(
+        models.Meeting.team_id == team_id,
+        models.Meeting.starts_at < to_date,
+        models.Meeting.ends_at > from_date
+    ).options(
+        selectinload(models.Meeting.organizer),
+        selectinload(models.Meeting.team_meetings_details).selectinload(models.TeamMeetings.user)
+    ).order_by(models.Meeting.starts_at)
+
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
 # ========= MEETINGS SECTION =========
