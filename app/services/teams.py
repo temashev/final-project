@@ -1,4 +1,5 @@
-from sqlalchemy import select
+from fastapi import HTTPException
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -65,19 +66,46 @@ async def remove_member_from_team(team_id: int, user_id: int, db: AsyncSession, 
 
 
 async def update_members_role(team_id: int, user_id: int, new_role: str, db: AsyncSession, current_user: models.User):
+    if current_user.role != 'manager':
+        return None
+
     stmt = select(models.Team).where(models.Team.id == team_id).options(selectinload(models.Team.members))
-
     result = await db.execute(stmt)
-    team = result.scalar_one_or_none()
 
+    team = result.scalar_one_or_none()
     if not team:
         return None
 
-    if current_user.role == 'manager':
-        for member in team.members:
-            if member.user_id == user_id:
-                return await teams.update_members_role(member=member, new_role=new_role, db=db)
+    target_member = next((m for m in team.members if m.user_id == user_id), None)
+    if not target_member:
+        return None
+
+    if target_member.role == 'manager' and new_role == 'member':
+        managers_count = sum(1 for m in team.members if m.role == 'manager')
+
+        if managers_count <= 1:
+            raise HTTPException(
+                status_code=400,
+                detail='Нельзя понизить последнего менеджера. В команде должен остаться хотя бы один'
+            )
+
+    return await teams.update_members_role(member=target_member, new_role=new_role, db=db)
 
 
 async def leave_team(team_id: int, user_id: int, db: AsyncSession):
+    stmt_role = select(models.TeamMember.role).where(
+        models.TeamMember.team_id == team_id,
+        models.TeamMember.user_id == user_id
+    )
+    user_role = await db.scalar(stmt_role)
+
+    if user_role == 'manager':
+        stmt_count = select(func.count()).select_from(models.TeamMember).where(
+            models.TeamMember.team_id == team_id,
+            models.TeamMember.role == 'manager'
+        )
+        managers_count = await db.scalar(stmt_count)
+
+        if managers_count <= 1:
+            raise HTTPException(status_code=400, detail='Нельзя покинуть команду, так как вы последний менеджер')
     return await teams.leave_team(team_id=team_id, user_id=user_id, db=db)

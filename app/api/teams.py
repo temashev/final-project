@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud.teams import create_team, get_team_by_invite_code, check_user_in_team, add_member_to_team, leave_team
-from app.services.teams import remove_member_from_team, update_members_role, get_team_by_team_id
+from app.crud.teams import create_team, get_team_by_invite_code, check_user_in_team, add_member_to_team
+from app.services.teams import remove_member_from_team, update_members_role, get_team_by_team_id, leave_team
 from app.db.database import get_db_session
 from app.dependencies import get_current_manager, get_current_user
 from app.schemas import TeamCreate, UpdateRoleRequest, TeamMembersResponse, TeamMemberResponse

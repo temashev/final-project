@@ -81,6 +81,28 @@ async def test_join_team_not_found(client, create_registered_test_user_member):
 
 
 @pytest.mark.asyncio
+async def test_join_team_already_member(client, create_registered_test_user_manager,
+                                        create_registered_test_user_member):
+    manager_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_manager}'
+    }
+    member_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_member}'
+    }
+
+    team = await client.post('/teams/create_team/', json={'name': 'Test team'}, headers=manager_headers)
+    invite_code = team.json()['invite_code']
+
+    join_res = await client.post(f'/teams/{invite_code}/join/', headers=member_headers)
+    assert join_res.status_code == 200
+
+    join_res_2 = await client.post(f'/teams/{invite_code}/join/', headers=member_headers)
+
+    assert join_res_2.status_code == 409
+    assert join_res_2.json()['detail'] == 'Вы уже в этой команде'
+
+
+@pytest.mark.asyncio
 async def test_get_team_members_success(client, create_registered_test_user_manager):
     """
     Тест на получение списка участников команды менеджером (владельцем)
@@ -283,3 +305,77 @@ async def test_change_member_role_invalid_value(
 
     # Ошибка валидации пайдантик (422)
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_leave_team_success(client, create_registered_test_user_manager, create_registered_test_user_member):
+    manager_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_manager}'
+    }
+    member_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_member}'
+    }
+
+    team = await client.post('/teams/create_team/', json={'name': 'Leave Team'}, headers=manager_headers)
+    team_data = team.json()
+    team_id = team_data['id']
+    invite_code = team_data['invite_code']
+
+    await client.post(f'/teams/{invite_code}/join/', headers=member_headers)
+
+    leave_res = await client.delete(f'/teams/{team_id}/leave/', headers=member_headers)
+    assert leave_res.status_code == 200
+
+    get_members_res = await client.get(f'/teams/{team_id}/members/', headers=member_headers)
+    assert get_members_res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_non_existent_member(client, create_registered_test_user_manager):
+    manager_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_manager}'
+    }
+    team = await client.post('/teams/create_team/', json={'name': 'Kick Team'}, headers=manager_headers)
+    team_id = team.json()['id']
+
+    fake_user_id = 9999
+    del_res = await client.delete(f'/teams/{team_id}/members/{fake_user_id}/', headers=manager_headers)
+
+    assert del_res.status_code == 404
+    assert del_res.json()['detail'] == f'Команды с id:{team_id} не существует'
+
+
+@pytest.mark.asyncio
+async def test_last_manager_cannot_demote_self(client, create_registered_test_user_manager):
+    manager_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_manager}'
+    }
+
+    team = await client.post('/teams/create_team/', json={'name': 'Orphan Team'}, headers=manager_headers)
+    team_id = team.json()['id']
+
+    me_res = await client.get('/users/me/', headers=manager_headers)
+    manager_id = me_res.json()['id']
+
+    response = await client.patch(
+        f'/teams/{team_id}/members/{manager_id}/role/',
+        json={'role': 'member'},
+        headers=manager_headers
+    )
+
+    assert response.status_code == 400
+    assert response.json()['detail'] == 'Нельзя понизить последнего менеджера. В команде должен остаться хотя бы один'
+
+
+@pytest.mark.asyncio
+async def test_last_manager_cannot_leave_team(client, create_registered_test_user_manager):
+    manager_headers = {
+        'Authorization': f'Bearer {create_registered_test_user_manager}'
+    }
+    team = await client.post('/teams/create_team/', json={'name': 'Orphan Team'}, headers=manager_headers)
+    team_id = team.json()['id']
+
+    response = await client.delete(f'/teams/{team_id}/leave/', headers=manager_headers)
+
+    assert response.status_code == 400
+    assert response.json()['detail'] == 'Нельзя покинуть команду, так как вы последний менеджер'
