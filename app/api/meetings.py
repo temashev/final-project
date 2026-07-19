@@ -5,8 +5,9 @@ from fastapi.params import Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime import normalize_datetime
-from app.crud.meetings import create_meeting, get_meeting_by_id, get_meetings_by_team, delete_meeting, update_meeting, \
-    get_calendar
+from app.crud.meetings import get_meeting_by_id, get_meetings_by_team, delete_meeting, get_calendar
+from app.services.meetings import create_meeting as service_create_meeting
+from app.services.meetings import update_meeting as service_update_meeting
 from app.crud.teams import check_user_in_team
 from app.db.database import get_db_session
 from app.dependencies import get_current_user
@@ -45,7 +46,7 @@ async def add_meeting(
     if check_meet:
         raise HTTPException(status_code=403, detail='На это время уже запланирована встреча')
 
-    new_meeting = await create_meeting(team_id=team_id, user_id=current_user.id, db=db, meeting_data=meeting_data)
+    new_meeting = await service_create_meeting(team_id=team_id, user_id=current_user.id, db=db, meeting_data=meeting_data)
     meeting = await get_meeting_by_id(
         meeting_id=new_meeting.id,
         team_id=team_id,
@@ -81,9 +82,11 @@ async def meeting_delete(
     if not manager:
         raise HTTPException(status_code=403, detail='У вас нет доступа ко встречам команды')
 
-    meeting = await delete_meeting(team_id=team_id, meeting_id=meeting_id, db=db)
+    meeting = await get_meeting_by_id(team_id=team_id, meeting_id=meeting_id, db=db)
     if not meeting:
         raise HTTPException(status_code=404, detail=f'Встречи с id:{meeting_id} не существует')
+
+    await delete_meeting(meeting=meeting, db=db)
     return {'detail': 'Встреча успешно удалена'}
 
 
@@ -116,7 +119,7 @@ async def meeting_update(
     if check_meet:
         raise HTTPException(status_code=403, detail='На это время уже запланирована встреча')
 
-    updated_meeting = await update_meeting(meeting_id=meeting_id, team_id=team_id, update_data=updated_dict, db=db)
+    updated_meeting = await service_update_meeting(meeting_id=meeting_id, team_id=team_id, update_data=updated_dict, db=db)
 
     if not updated_meeting:
         raise HTTPException(

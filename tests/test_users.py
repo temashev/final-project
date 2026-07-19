@@ -119,3 +119,62 @@ async def test_update_profile_invalid_email(client, create_registered_test_user_
 
     assert response.status_code == 422
     assert 'detail' in response.json()
+
+
+@pytest.mark.asyncio
+async def test_get_my_profile_no_evaluations(client, create_registered_test_user_manager):
+    headers = {
+        'Authorization': f'Bearer {create_registered_test_user_manager}'
+    }
+
+    res = await client.get('/users/me/', headers=headers)
+
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data['avg_score'] == 0.0
+    assert data['evaluations'] == []
+
+
+@pytest.mark.asyncio
+async def test_get_my_profile_with_avg_score(client, create_registered_test_user_manager):
+    headers = {'Authorization': f'Bearer {create_registered_test_user_manager}'}
+
+    team_res = await client.post('/teams/create_team/', json={'name': 'Avg Score Team'}, headers=headers)
+    team_id = team_res.json()['id']
+
+    task1_res = await client.post(
+        f'/teams/{team_id}/tasks/',
+        json={'title': 'Task 1', 'description': 'Test 1', 'due_date': '2026-12-31'},
+        headers=headers
+    )
+    task1_id = task1_res.json()['id']
+
+    task2_res = await client.post(
+        f'/teams/{team_id}/tasks/',
+        json={'title': 'Task 2', 'description': 'Test 2', 'due_date': '2026-12-31'},
+        headers=headers
+    )
+    task2_id = task2_res.json()['id']
+
+    await client.patch(f'/teams/{team_id}/tasks/{task1_id}', json={'status': 'done'}, headers=headers)
+    await client.patch(f'/teams/{team_id}/tasks/{task2_id}', json={'status': 'done'}, headers=headers)
+
+    await client.post(
+        f'/teams/{team_id}/tasks/{task1_id}/evaluation',
+        json={'score': 5, 'comment': 'Отлично'},
+        headers=headers
+    )
+    await client.post(
+        f'/teams/{team_id}/tasks/{task2_id}/evaluation',
+        json={'score': 4, 'comment': 'Хорошо'},
+        headers=headers
+    )
+
+    res = await client.get('/users/me/', headers=headers)
+
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data['avg_score'] == 4.5
+    assert len(data['evaluations']) == 2
