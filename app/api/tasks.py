@@ -106,6 +106,10 @@ async def add_comment(
         task_id=task_id,
         comment_data=comment_data
     )
+
+    if not new_comment:
+        raise HTTPException(status_code=404, detail='Задача не найдена')
+
     return new_comment
 
 

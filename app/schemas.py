@@ -36,16 +36,30 @@ class EvaluationResponse(BaseModel):
     score: int
     comment: str
 
+    model_config = ConfigDict(from_attributes=True)
 
-class UserResponse(BaseModel):
+
+class UserRegisterResponse(BaseModel):
     id: int
     email: EmailStr
     full_name: str
     role: str
-    avg_score: float
-    evaluations: list[EvaluationResponse]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserPublicResponse(BaseModel):
+    id: int
+    email: EmailStr
+    full_name: str
+    role: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserProfileResponse(UserPublicResponse):
+    avg_score: float
+    evaluations: list["EvaluationResponse"]
 
 
 class UserLogin(BaseModel):
@@ -84,17 +98,31 @@ class TeamCreate(BaseModel):
     name: str
 
 
-class TeamMembers(BaseModel):
-    name: str
-    invite_code: str
-    members: List['TeamMemberResponse']
+class TeamUserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    full_name: str
+    role: str
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class TeamMemberResponse(BaseModel):
+    id: int
     role: str
-    user: UserResponse
+    user_id: int
+    team_id: int
+
+    user: TeamUserResponse
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TeamMembersResponse(BaseModel):
+    id: int
+    name: str
+    invite_code: str
+    members: list[TeamMemberResponse]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -127,6 +155,8 @@ class CommentResponse(BaseModel):
     created_at: datetime
     username: str  # тут будет full_name
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class MeetingCreate(BaseModel):
     starts_at: datetime
@@ -156,3 +186,16 @@ class MeetingUpdate(BaseModel):
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
     member_ids: Optional[list[int]] = Field(default=None, examples=[1, 2])
+
+
+class CalendarMeetingResponse(BaseModel):
+    id: int
+    starts_at: datetime
+    ends_at: datetime
+    team_id: int
+    team_name: str
+    organizer_id: int
+    organizer_name: str
+    members: list[MeetingMemberResponse] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)

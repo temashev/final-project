@@ -9,7 +9,7 @@ from app.crud import check_is_user_team_manager, check_date, create_meeting, che
     get_calendar
 from app.db.database import get_db_session
 from app.dependencies import get_current_user
-from app.schemas import MeetingResponse, MeetingUpdate, MeetingCreate, MeetingMemberResponse
+from app.schemas import MeetingResponse, MeetingUpdate, MeetingCreate, MeetingMemberResponse, CalendarMeetingResponse
 
 meet_router = APIRouter(prefix='/teams', tags=['Встречи'])
 
@@ -131,32 +131,28 @@ async def meeting_update(
     )
 
 
-@meet_router.get('/{team_id}/calendar/', response_model=list[MeetingResponse])
+@meet_router.get('/calendar/', response_model=list[CalendarMeetingResponse])
 async def calendar(
-        team_id: int = Path(le=2147483647, ge=1),
         from_date: date = Query(..., alias='from'),
         to_date: date = Query(..., alias='to'),
         current_user=Depends(get_current_user),
         db: AsyncSession = Depends(get_db_session)
 ):
-    manager = await check_user_in_team(team_id=team_id, user_id=current_user.id, db=db)
-
-    if not manager:
-        raise HTTPException(status_code=403, detail='У вас нет доступа к календарю команды')
-
     if from_date >= to_date:
         raise HTTPException(status_code=400, detail='Некорректный диапазон дат')
 
-    meetings = await get_calendar(team_id=team_id, from_date=from_date, to_date=to_date, db=db)
+    meetings = await get_calendar(user_id=current_user.id, from_date=from_date, to_date=to_date, db=db)
 
-    return [MeetingResponse(
+    return [CalendarMeetingResponse(
         id=meeting.id,
         starts_at=meeting.starts_at,
         ends_at=meeting.ends_at,
+        team_id=meeting.team_id,
+        team_name=meeting.team.name,
         organizer_id=meeting.organizer_id,
         organizer_name=meeting.organizer.full_name,
         members=[MeetingMemberResponse(
             id=item.user.id,
-            full_name=item.user.full_name
+            full_name=item.user.full_name,
         ) for item in meeting.team_meetings_details]
     ) for meeting in meetings]

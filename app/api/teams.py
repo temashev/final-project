@@ -5,12 +5,12 @@ from app.crud import create_team, get_team_by_invite_code, add_member_to_team, g
     remove_member_from_team, update_members_role, leave_team, check_user_in_team
 from app.db.database import get_db_session
 from app.dependencies import get_current_manager, get_current_user
-from app.schemas import TeamCreate, UpdateRoleRequest, TeamMembers
+from app.schemas import TeamCreate, UpdateRoleRequest, TeamMembersResponse, TeamMemberResponse
 
 teams_router = APIRouter(prefix='/teams', tags=['Команды'])
 
 
-@teams_router.post('/create_team/')
+@teams_router.post('/create_team/', response_model=TeamMembersResponse)
 async def register_team(
         new_team: TeamCreate,
         db: AsyncSession = Depends(get_db_session),
@@ -20,7 +20,7 @@ async def register_team(
     return team
 
 
-@teams_router.post('/{invite_code}/join/')
+@teams_router.post('/{invite_code}/join/', response_model=TeamMemberResponse)
 async def join_team(
         invite_code: str,
         db: AsyncSession = Depends(get_db_session),
@@ -36,7 +36,7 @@ async def join_team(
     return new_member
 
 
-@teams_router.get('/{team_id}/members/')
+@teams_router.get('/{team_id}/members/', response_model=TeamMembersResponse)
 async def get_team_members(
         team_id: int = Path(le=2147483647, ge=1),  # чтобы не было 500 ошибки при больших или числах <0
         current_user=Depends(get_current_user),
@@ -48,7 +48,7 @@ async def get_team_members(
     return team
 
 
-@teams_router.delete('/{team_id}/members/{user_id}/', response_model=TeamMembers)
+@teams_router.delete('/{team_id}/members/{user_id}/', response_model=TeamMembersResponse)
 async def delete_team_member(
         team_id: int = Path(le=2147483647, ge=1),  # чтобы не было 500 ошибки при больших или числах <0
         user_id: int = Path(le=2147483647, ge=1),

@@ -4,7 +4,7 @@ from datetime import datetime, timezone, date
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, exists, delete
+from sqlalchemy import select, exists, delete, func, or_
 from sqlalchemy.orm import selectinload
 
 from app.db import models
@@ -81,7 +81,6 @@ async def create_user(db: AsyncSession, user_in: schemas.UserRegister):
 
     db.add(db_user)
     await db.commit()
-    await db.refresh(db_user)
 
     return db_user
 
@@ -189,19 +188,24 @@ async def create_team(name: str, db: AsyncSession, current_user: models.User):
     db.add(team_member)
 
     await db.commit()
-    await db.refresh(new_team)
+    stmt = select(models.Team).where(models.Team.id == new_team.id).options(
+        selectinload(models.Team.members).selectinload(models.TeamMember.user)
+    )
 
-    return new_team
+    result = await db.execute(stmt)
+    return result.scalar_one()
 
 
 async def get_team_by_team_id(team_id: int, db: AsyncSession, current_user: models.User):
-    stmt = select(models.Team).where(models.Team.id == team_id).options(selectinload(models.Team.members))
+    stmt = select(models.Team).where(models.Team.id == team_id).options(
+        selectinload(models.Team.members).selectinload(models.TeamMember.user)
+    )
     result = await db.execute(stmt)
     team = result.scalar_one_or_none()
     if not team:
         return None
 
-    member_ids = [member.id for member in team.members]
+    member_ids = [member.user_id for member in team.members]
 
     if current_user.role != 'manager' and current_user.id not in member_ids:
         return None
@@ -370,6 +374,17 @@ async def create_comment(
     """
     Создание комментария
     """
+    stmt = select(models.Task).where(
+        models.Task.id == task_id,
+        models.Task.team_id == team_id
+    )
+
+    result = await db.execute(stmt)
+    task = result.scalar_one_or_none()
+
+    if not task:
+        return None
+
     new_comment = models.Comment(
         text=comment_data.text,
         created_at=datetime.now(),
@@ -377,9 +392,11 @@ async def create_comment(
         team_id=team_id,
         task_id=task_id
     )
+
     db.add(new_comment)
     await db.commit()
     await db.refresh(new_comment)
+
     return new_comment
 
 
@@ -459,9 +476,9 @@ def meeting_to_response(meeting: models.Meeting):
         members=[
             schemas.MeetingMemberResponse(
                 id=member.id,
-                full_name=member.full_name
+                full_name=member.user.full_name
             )
-            for member in meeting.members
+            for member in meeting.team_meetings_details
         ]
     )
 
@@ -485,8 +502,10 @@ async def create_meeting(
     db.add(new_meeting)
     await db.flush()
 
+    unique_members = set(meeting_data.member_ids or [])
+    unique_members.add(user_id)
+
     if meeting_data.member_ids:
-        unique_members = set(meeting_data.member_ids)
         add_stmt = [
             models.TeamMeetings(
                 team_id=team_id,
@@ -506,9 +525,12 @@ async def get_meetings_by_team(team_id: int, db: AsyncSession):
     """
     Получение всех встреч команды
     """
-    stmt = select(models.Meeting).where(
-        models.Meeting.team_id == team_id
-    ).options(selectinload(models.Meeting.organizer), selectinload(models.Meeting.members))
+    stmt = select(models.Meeting).where(models.Meeting.team_id == team_id).options(
+        selectinload(models.Meeting.organizer),
+        selectinload(models.Meeting.team_meetings_details)
+        .selectinload(models.TeamMeetings.user)
+    )
+
     result = await db.execute(stmt)
     meetings = result.scalars().all()
     return [meeting_to_response(meeting) for meeting in meetings]
@@ -583,17 +605,22 @@ async def update_meeting(meeting_id: int, team_id: int, update_data: dict, db: A
     )
 
 
-async def get_calendar(team_id: int, from_date: date, to_date: date, db: AsyncSession):
+async def get_calendar(user_id: int, from_date: date, to_date: date, db: AsyncSession):
     stmt = select(models.Meeting).where(
-        models.Meeting.team_id == team_id,
-        models.Meeting.starts_at < to_date,
-        models.Meeting.ends_at > from_date
+        func.date(models.Meeting.starts_at) >= from_date,
+        func.date(models.Meeting.starts_at) <= to_date,
+        or_(
+            models.Meeting.organizer_id == user_id,
+            models.Meeting.team_meetings_details.any(models.TeamMeetings.user_id == user_id)
+        )
     ).options(
         selectinload(models.Meeting.organizer),
-        selectinload(models.Meeting.team_meetings_details).selectinload(models.TeamMeetings.user)
+        selectinload(models.Meeting.team),
+        selectinload(models.Meeting.team_meetings_details)
+        .selectinload(models.TeamMeetings.user)
     ).order_by(models.Meeting.starts_at)
 
     result = await db.execute(stmt)
-    return result.scalars().all()
+    return result.scalars().unique().all()
 
 # ========= MEETINGS SECTION =========

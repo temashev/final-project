@@ -7,14 +7,15 @@ from app.crud import create_user, get_user_by_email, add_token_to_blacklist, upd
     get_user_profile_data
 from app.db.database import get_db_session
 from app.dependencies import oauth2_scheme, get_current_user
-from app.schemas import UserRegister, UserResponse, UserLogin, UserPasswordChange, UserProfileUpdate
+from app.schemas import UserRegister, UserProfileResponse, UserLogin, UserPasswordChange, UserProfileUpdate, \
+    UserRegisterResponse
 from app.services.security import verify_password, create_access_token
 
 users_router = APIRouter(prefix='/users', tags=['Пользователи'])
 auth_router = APIRouter(prefix='/auth', tags=['Аутентификация'])
 
 
-@auth_router.post('/register/', response_model=UserResponse)
+@auth_router.post('/register/', response_model=UserRegisterResponse)
 async def register_user(user: UserRegister, db: AsyncSession = Depends(get_db_session)):
     # Отлавливание зарегистрированного имейла
     existing_user = await get_user_by_email(db=db, email=user.email)
@@ -74,7 +75,7 @@ async def change_password(
     return {'message': 'Пароль обновлен успешно'}
 
 
-@users_router.get('/me/', response_model=UserResponse)
+@users_router.get('/me/', response_model=UserProfileResponse)
 async def get_my_profile(current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db_session)):
     user = await get_user_profile_data(user_id=current_user.id, db=db)
     return user
