@@ -99,4 +99,5 @@ async def update_profile(
             detail='Пользователь не найден или у вас недостаточно прав'
         )
 
+
     return updated_user

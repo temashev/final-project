@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -7,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from app import schemas
 from app.core.security import get_password_hash, decode_token
 from app.crud import users
+from app.crud.users import get_user_by_email
 from app.db import models
 
 
@@ -47,6 +49,15 @@ async def update_user_profile(user: models.User, updated_data: dict, db: AsyncSe
     """
     if not user:
         return None
+
+    new_email = updated_data.get('email')
+    if new_email and new_email != user.email:
+        user_exist = await get_user_by_email(db=db, email=new_email)
+        if user_exist:
+            raise HTTPException(
+                status_code=400,
+                detail='Пользователь с таким email уже существует'
+            )
 
     for k, v in updated_data.items():
         setattr(user, k, v)

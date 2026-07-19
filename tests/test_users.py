@@ -77,6 +77,29 @@ async def test_login_wrong_password(client, unique_email, register_user):
 
 
 @pytest.mark.asyncio
+@pytest.mark.login
+async def test_login_non_existent_email(client):
+    payload = {
+        'username': 'test_test_test@example.com',
+        'password': 'Password123',
+    }
+
+    response = await client.post('/auth/login/', data=payload)
+
+    assert response.status_code == 401
+    assert response.json()['detail'] == 'Неверный email или пароль'
+
+
+@pytest.mark.asyncio
+async def test_get_user_profile_unauthorized(client):
+    # Запрос без заголовка
+    response = await client.get('/users/me/')
+
+    assert response.status_code == 401
+    assert response.json()['detail'] == 'Not authenticated'
+
+
+@pytest.mark.asyncio
 async def test_get_user_profile(client, create_registered_test_user_member, unique_email):
     users_headers = {
         'Authorization': f'Bearer {create_registered_test_user_member}'
@@ -119,3 +142,71 @@ async def test_update_profile_invalid_email(client, create_registered_test_user_
 
     assert response.status_code == 422
     assert 'detail' in response.json()
+
+
+@pytest.mark.asyncio
+async def test_logout_success_and_token_invalidation(client, create_registered_test_user_member):
+    headers = {
+        'Authorization': f'Bearer {create_registered_test_user_member}'
+    }
+
+    logout_response = await client.post('/auth/logout/', headers=headers)
+    assert logout_response.status_code == 200
+    assert logout_response.json()['detail'] == 'Вы успешно вышли из системы'
+
+    # Попытка получить профиль с тем же токеном
+    profile_response = await client.get('/users/me/', headers=headers)
+    assert profile_response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_change_password_success(client, create_registered_test_user_member):
+    headers = {
+        'Authorization': f'Bearer {create_registered_test_user_member}'
+    }
+
+    payload = {
+        'old_password': 'Password123',
+        'new_password': 'NewStrongPassword1!',
+        'confirm_new_password': 'NewStrongPassword1!'
+    }
+
+    response = await client.post('/users/change-password/', json=payload, headers=headers)
+    assert response.status_code == 200
+    assert response.json()['message'] == 'Пароль обновлен успешно'
+
+
+@pytest.mark.asyncio
+async def test_change_password_wrong_old_password(client, create_registered_test_user_member):
+    headers = {
+        'Authorization': f'Bearer {create_registered_test_user_member}'
+    }
+
+    payload = {
+        'old_password': 'WrongPassword!',
+        'new_password': 'NewStrongPassword1!',
+        'confirm_new_password': 'NewStrongPassword1!'
+    }
+
+    response = await client.post('/users/change-password/', json=payload, headers=headers)
+    assert response.status_code == 401
+    assert response.json()['detail'] == 'Неверный пароль'
+
+
+@pytest.mark.asyncio
+async def test_update_profile_duplicate_email(client, create_registered_test_user_member, register_user):
+    second_email = 'second_user@example.com'
+    await register_user(email=second_email, full_name='Second User')
+
+    headers = {
+        'Authorization': f'Bearer {create_registered_test_user_member}'
+    }
+
+    # Попытка поменять имейл первого юзера на имейл второго
+    payload = {
+        'email': second_email
+    }
+
+    response = await client.patch('/users/update-profile', json=payload, headers=headers)
+
+    assert response.status_code in (400, 409)
