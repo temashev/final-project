@@ -29,11 +29,11 @@ async def test_register_and_login_user_pipeline(client, unique_email, register_u
     await register_user(email=unique_email, full_name='Test user')
 
     payload = {
-        'email': unique_email,
+        'username': unique_email,
         'password': 'Password123',
     }
 
-    response = await client.post('/auth/login/', json=payload)
+    response = await client.post('/auth/login/', data=payload)
 
     assert response.status_code == 200
 
@@ -66,11 +66,11 @@ async def test_login_wrong_password(client, unique_email, register_user):
     await register_user(email=unique_email, full_name='Test user')
 
     payload = {
-        'email': unique_email,
+        'username': unique_email,
         'password': 'Password123' + '1',
     }
 
-    response = await client.post('/auth/login/', json=payload)
+    response = await client.post('/auth/login/', data=payload)
 
     assert response.status_code == 401
     assert response.json()['detail'] == 'Неверный email или пароль'

@@ -4,12 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from fastapi.params import Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud import check_is_user_team_manager, check_date, create_meeting, check_user_in_team, get_meetings_by_team, \
-    delete_meeting, update_meeting, get_meeting_by_id, normalize_datetime, check_users_in_team, meeting_to_response, \
+from app.core.datetime import normalize_datetime
+from app.crud.meetings import create_meeting, get_meeting_by_id, get_meetings_by_team, delete_meeting, update_meeting, \
     get_calendar
+from app.crud.teams import check_user_in_team
 from app.db.database import get_db_session
 from app.dependencies import get_current_user
 from app.schemas import MeetingResponse, MeetingUpdate, MeetingCreate, MeetingMemberResponse, CalendarMeetingResponse
+from app.services.meetings import check_date, meeting_to_response
+from app.services.teams import check_is_user_team_manager, check_users_in_team
 
 meet_router = APIRouter(prefix='/teams', tags=['Встречи'])
 

@@ -10,11 +10,11 @@ from sqlalchemy.pool import NullPool
 from app.config.settings import settings
 from app.main import app
 from app.db.database import get_db_session
-from app.services.security import create_access_token
+from app.core.security import create_access_token
 from app.db.models import *
 
 test_engine = create_async_engine(settings.TEST_DATABASE_URL, poolclass=NullPool)
-TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=test_engine, expire_on_commit=False)
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -73,9 +73,9 @@ async def register_user(client):
 async def create_registered_test_user_member(register_user, unique_email):
     await register_user(email=unique_email, full_name='test user member')
 
-    # Замена имейла на sub, т.к. в get_current_user проверяется именно по ключу sub
+
     test_token = create_access_token(
-        data={'sub': unique_email, 'role': 'member'}
+        data={'email': unique_email, 'role': 'member'}
     )
     return test_token
 
@@ -89,18 +89,18 @@ async def create_registered_test_user_manager(register_user):
     # Обращение к тестовой бд, чтобы изменить роль на менеджера, т.к. в бекенде жестко вшивается роль member для каждого
     async with TestingSessionLocal() as session:
         res = await session.execute(select(User).where(User.email == manager_email))
-        db_user = res.scalar_one_or_none()
+        db_user = res.scalar_one()
 
         assert db_user is not None, 'Пользователь не найден в тестовой сессии БД'
         db_user.role = 'manager'
         await session.commit()
 
-    # Замена имейла на sub, т.к. в get_current_user проверяется именно по ключу sub
-    test_token = create_access_token(
-        data={'sub': manager_email, 'role': 'manager'}
-    )
 
+    test_token = create_access_token(
+        data={'email': manager_email, 'role': 'member'}
+    )
     return test_token
+
 
 
 @pytest.fixture
@@ -127,7 +127,6 @@ async def test_team_with_member(unique_email, create_registered_test_user_member
 
 @pytest.fixture
 async def test_team_with_manager(create_registered_test_user_manager):
-
     async with TestingSessionLocal() as session:
         res = await session.execute(select(User).where(User.role == 'manager'))
         db_user = res.scalars().all()[-1]

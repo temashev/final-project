@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud import create_team, get_team_by_invite_code, add_member_to_team, get_team_by_team_id, \
-    remove_member_from_team, update_members_role, leave_team, check_user_in_team
+from app.crud.teams import create_team, get_team_by_invite_code, check_user_in_team, add_member_to_team, leave_team
+from app.services.teams import remove_member_from_team, update_members_role, get_team_by_team_id
 from app.db.database import get_db_session
 from app.dependencies import get_current_manager, get_current_user
 from app.schemas import TeamCreate, UpdateRoleRequest, TeamMembersResponse, TeamMemberResponse
@@ -56,8 +56,11 @@ async def delete_team_member(
         db: AsyncSession = Depends(get_db_session)
 ):
     team = await remove_member_from_team(team_id=team_id, current_user=current_user, user_id=user_id, db=db)
-    if not team:
+    if team is None:
         raise HTTPException(status_code=404, detail=f'Команды с id:{team_id} не существует')
+
+    if team is False:
+        raise HTTPException(status_code=403, detail='Недостаточно прав')
     return team
 
 

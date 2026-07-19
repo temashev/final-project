@@ -1,11 +1,14 @@
 from fastapi import Depends, HTTPException, APIRouter, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud import create_task, get_tasks_by_team, update_task, delete_task, check_user_in_team, create_comment, \
-    show_comments_list, create_evaluation, check_is_user_team_manager, get_task_by_id
+from app.crud.comments import create_comment, show_comments_list
+from app.crud.evaluation import create_evaluation
+from app.crud.tasks import create_task, get_tasks_by_team, update_task, delete_task, get_task_by_id
+from app.crud.teams import check_user_in_team
 from app.db.database import get_db_session
 from app.dependencies import get_current_user
 from app.schemas import TaskCreate, TaskUpdate, CommentCreate, CommentResponse, EvaluationCreate
+from app.services.teams import check_is_user_team_manager
 
 task_router = APIRouter(prefix='/teams', tags=['Задачи'])
 

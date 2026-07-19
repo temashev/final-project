@@ -1,9 +1,9 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
-from app.crud import get_user_by_email, get_blacklisted_token
+from app.crud.users import get_user_by_email, get_blacklisted_token
 from app.db.database import get_db_session
-from app.services.security import decode_token
+from app.core.security import decode_token
 from app.db import models
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login/')

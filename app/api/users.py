@@ -3,13 +3,14 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse
 
-from app.crud import create_user, get_user_by_email, add_token_to_blacklist, update_user_password, update_user_profile, \
-    get_user_profile_data
+from app.crud.users import get_user_by_email
 from app.db.database import get_db_session
 from app.dependencies import oauth2_scheme, get_current_user
-from app.schemas import UserRegister, UserProfileResponse, UserLogin, UserPasswordChange, UserProfileUpdate, \
+from app.schemas import UserRegister, UserProfileResponse, UserPasswordChange, UserProfileUpdate, \
     UserRegisterResponse
-from app.services.security import verify_password, create_access_token
+from app.core.security import verify_password, create_access_token
+from app.services.users import update_user_password, get_user_profile_data, update_user_profile, add_token_to_blacklist, \
+    create_user
 
 users_router = APIRouter(prefix='/users', tags=['Пользователи'])
 auth_router = APIRouter(prefix='/auth', tags=['Аутентификация'])
