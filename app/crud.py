@@ -1,6 +1,7 @@
 import uuid
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, exists, delete
@@ -8,13 +9,27 @@ from sqlalchemy.orm import selectinload
 
 from app.db import models
 from app import schemas
-from app.db.models import BlackListTokens
+from app.db.models import BlackListTokens, Meeting
 from app.services.security import get_password_hash, decode_token
+
+
+async def check_users_in_team(team_id: int, user_ids: list[int], db: AsyncSession):
+    """
+    Вспомогательная функция для проверки находится ли НЕСКОЛЬКО юзеров в команде
+    """
+    stmt = select(models.TeamMember.user_id).where(
+        models.TeamMember.team_id == team_id,
+        models.TeamMember.user_id.in_(user_ids)
+    )
+
+    result = await db.execute(stmt)
+    ids = set(result.scalars().all())
+    return ids == set(user_ids)
 
 
 async def check_user_in_team(team_id: int, user_id: int, db: AsyncSession):
     """
-    Вспомогательня функция для проверки находится ли юзер в этой команде
+    Вспомогательная функция для проверки находится ли ОДИН юзер в команде
     """
     stmt = select(
         exists().where(
@@ -41,6 +56,15 @@ async def check_is_user_team_manager(team_id: int, user_id: int, db: AsyncSessio
     result = await db.execute(stmt)
 
     return result.scalar()
+
+
+def normalize_datetime(dt: datetime) -> datetime:
+    """
+    Вспомогательная функция для нормализации времени, чтобы не указывать часовые пояса вручную
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 # =========== USER SECTION ===========
@@ -269,7 +293,6 @@ async def leave_team(team_id: int, user_id: int, db: AsyncSession):
 # =========== TEAM SECTION ===========
 # ====================================
 # =========== TASK SECTION ===========
-## TODO: прикрутить статусы
 async def create_task(task_data: schemas.TaskCreate, db: AsyncSession, team_id: int, user_id: int):
     """
     Создание задачи
@@ -402,4 +425,160 @@ async def create_evaluation(
     await db.refresh(new_evaluation)
     return new_evaluation
 
+
 # =========== TASK SECTION ===========
+# ====================================
+# ========= MEETINGS SECTION =========
+async def check_date(
+        team_id: int,
+        new_start: datetime,
+        new_end: datetime,
+        db: AsyncSession,
+        meeting_id: Optional[int] = None
+):
+    stmt = select(models.Meeting).where(
+        Meeting.team_id == team_id,
+        new_start < Meeting.ends_at,
+        new_end > Meeting.starts_at,
+    )
+    if meeting_id:
+        # проверка по айди решает проблему редактирования. Без нее сломается логика создания встречи, т.к. функция будет
+        # требовать айди запрашиваемой встречи, а для создания айди этой встречи еще не существует
+        stmt = stmt.where(Meeting.id != meeting_id)
+    result = await db.execute(stmt)
+    return result.scalars().first()
+
+
+def meeting_to_response(meeting: models.Meeting):
+    return schemas.MeetingResponse(
+        id=meeting.id,
+        starts_at=meeting.starts_at,
+        ends_at=meeting.ends_at,
+        organizer_id=meeting.organizer_id,
+        organizer_name=meeting.organizer.full_name,
+        members=[
+            schemas.MeetingMemberResponse(
+                id=member.id,
+                full_name=member.full_name
+            )
+            for member in meeting.members
+        ]
+    )
+
+
+async def create_meeting(
+        meeting_data: schemas.MeetingCreate,
+        team_id: int,
+        user_id: int,
+        db: AsyncSession
+):
+    start = normalize_datetime(meeting_data.starts_at)
+    end = normalize_datetime(meeting_data.ends_at)
+
+    new_meeting = models.Meeting(
+        starts_at=start,
+        ends_at=end,
+        organizer_id=user_id,
+        team_id=team_id
+    )
+
+    db.add(new_meeting)
+    await db.flush()
+
+    if meeting_data.member_ids:
+        unique_members = set(meeting_data.member_ids)
+        add_stmt = [
+            models.TeamMeetings(
+                team_id=team_id,
+                meeting_id=new_meeting.id,
+                user_id=member_id,
+            ) for member_id in unique_members
+        ]
+        db.add_all(add_stmt)
+
+    await db.commit()
+    await db.refresh(new_meeting)
+
+    return new_meeting
+
+
+async def get_meetings_by_team(team_id: int, db: AsyncSession):
+    """
+    Получение всех встреч команды
+    """
+    stmt = select(models.Meeting).where(
+        models.Meeting.team_id == team_id
+    ).options(selectinload(models.Meeting.organizer), selectinload(models.Meeting.members))
+    result = await db.execute(stmt)
+    meetings = result.scalars().all()
+    return [meeting_to_response(meeting) for meeting in meetings]
+
+
+async def get_meeting_by_id(meeting_id: int, team_id: int, db: AsyncSession):
+    """
+    Получение встречи по айди
+    """
+    stmt = select(models.Meeting).where(
+        models.Meeting.id == meeting_id,
+        models.Meeting.team_id == team_id
+    ).options(
+        selectinload(models.Meeting.organizer),
+        selectinload(models.Meeting.team_meetings_details).selectinload(models.TeamMeetings.user)
+    )
+
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def delete_meeting(team_id: int, meeting_id: int, db: AsyncSession):
+    """
+    Удаление встречи
+    """
+    meeting = await get_meeting_by_id(meeting_id=meeting_id, team_id=team_id, db=db)
+    if not meeting:
+        return None
+
+    await db.delete(meeting)
+    await db.commit()
+    return True
+
+
+async def update_meeting(meeting_id: int, team_id: int, update_data: dict, db: AsyncSession):
+    """
+    Обновление встречи
+    """
+    meeting = await get_meeting_by_id(meeting_id=meeting_id, team_id=team_id, db=db)
+    if not meeting:
+        return None
+
+    if 'member_ids' in update_data:
+        new_members = set(update_data.pop('member_ids'))
+
+        old_members = {item.user_id for item in meeting.team_meetings_details}
+
+        remove_ids = old_members - new_members
+        add_ids = new_members - old_members
+
+        if remove_ids:
+            await db.execute(delete(models.TeamMeetings).where(
+                models.TeamMeetings.meeting_id == meeting_id,
+                models.TeamMeetings.user_id.in_(remove_ids)
+            ))
+        for user_id in add_ids:
+            db.add(models.TeamMeetings(
+                meeting_id=meeting_id,
+                team_id=team_id,
+                user_id=user_id
+            ))
+
+    for k, v in update_data.items():
+        setattr(meeting, k, v)
+
+    await db.commit()
+
+    return await get_meeting_by_id(
+        meeting_id=meeting_id,
+        team_id=team_id,
+        db=db
+    )
+# ========= MEETINGS SECTION =========

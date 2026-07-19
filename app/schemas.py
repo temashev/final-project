@@ -126,3 +126,33 @@ class CommentResponse(BaseModel):
     text: str
     created_at: datetime
     username: str  # тут будет full_name
+
+
+class MeetingCreate(BaseModel):
+    starts_at: datetime
+    ends_at: datetime
+    member_ids: Optional[list[int]] = None
+
+
+class MeetingMemberResponse(BaseModel):
+    id: int
+    full_name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MeetingResponse(BaseModel):
+    id: int
+    starts_at: datetime
+    ends_at: datetime
+    members: list[MeetingMemberResponse] = Field(default_factory=list)
+    organizer_id: int
+    organizer_name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MeetingUpdate(BaseModel):
+    starts_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+    member_ids: Optional[list[int]] = Field(default=None, examples=[1, 2])

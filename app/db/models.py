@@ -31,7 +31,9 @@ class User(Base):
     team_membership: Mapped[list['TeamMember']] = relationship(back_populates='user')
     tasks: Mapped[list['Task']] = relationship(back_populates='user')
     comments: Mapped[list['Comment']] = relationship(back_populates='user')
-    meetings: Mapped[list['Meeting']] = relationship(back_populates='user')
+    organized_meetings: Mapped[list['Meeting']] = relationship(back_populates='organizer')
+    team_meetings_details: Mapped[list['TeamMeetings']] = relationship(back_populates='user',
+                                                                       cascade='all, delete-orphan')
 
 
 class Team(Base):
@@ -45,6 +47,9 @@ class Team(Base):
     tasks: Mapped[list['Task']] = relationship(back_populates='team', cascade='all, delete-orphan')
     comments: Mapped[list['Comment']] = relationship(back_populates='team', cascade='all, delete-orphan')
     meetings: Mapped[list['Meeting']] = relationship(back_populates='team', cascade='all, delete-orphan')
+
+    team_meetings_details: Mapped[list['TeamMeetings']] = relationship(back_populates='team',
+                                                                       cascade='all, delete-orphan')
 
 
 class Task(Base):
@@ -83,18 +88,34 @@ class Comment(Base):
     task: Mapped['Task'] = relationship(back_populates='comments')
 
 
+class TeamMeetings(Base):
+    __tablename__ = 'team_meetings'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'))
+    meeting_id: Mapped[int] = mapped_column(ForeignKey('meetings.id'))
+
+    user: Mapped['User'] = relationship(back_populates='team_meetings_details')
+    team: Mapped['Team'] = relationship(back_populates='team_meetings_details')
+    meeting: Mapped['Meeting'] = relationship(back_populates='team_meetings_details')
+
+
 class Meeting(Base):
     __tablename__ = 'meetings'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    starts_at: Mapped[datetime] = mapped_column(DateTime)
-    ends_at: Mapped[datetime] = mapped_column(DateTime)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+    organizer_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
     team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'))
 
-    user: Mapped['User'] = relationship(back_populates='meetings')
+    organizer: Mapped['User'] = relationship(back_populates='organized_meetings')
     team: Mapped['Team'] = relationship(back_populates='meetings')
+    team_meetings_details: Mapped[list['TeamMeetings']] = relationship(back_populates='meeting',
+                                                                       cascade='all, delete-orphan')
 
 
 class Evaluation(Base):
