@@ -84,21 +84,53 @@ async def test_list_tasks(client, create_registered_test_user_member, test_team_
 
 
 @pytest.mark.asyncio
-async def test_update_task(client, create_registered_test_user_manager, test_team_with_manager):
+async def test_update_task_not_found(client, create_registered_test_user_manager, test_team_with_manager):
     headers = {
         'Authorization': f'Bearer {create_registered_test_user_manager}'
     }
     payload = {
-        'status': 'In progress'
+        'status': 'in_progress'
     }
 
-    response = await client.patch(f'/teams/{test_team_with_manager.id}/tasks/1', json=payload, headers=headers)
+    response = await client.patch(
+        f'/teams/{test_team_with_manager.id}/tasks/9999',
+        json=payload,
+        headers=headers
+    )
 
-    print(response.json())
-    if response.status_code == 200:
-        assert response.json()['status'] == 'In progress'
-    else:
-        assert response.status_code == 404
+    assert response.status_code == 404
+    assert response.json()['detail'] == 'Задача не найдена'
+
+
+@pytest.mark.asyncio
+async def test_update_task_success(client, create_registered_test_user_manager, test_team_with_manager):
+    headers = {
+        'Authorization': f'Bearer {create_registered_test_user_manager}'
+    }
+
+    create_payload = {
+        'title': 'Test Task',
+        'description': 'Description',
+        'due_date': '2026-12-31'
+    }
+    create_response = await client.post(
+        f'/teams/{test_team_with_manager.id}/tasks/',
+        json=create_payload,
+        headers=headers
+    )
+    assert create_response.status_code == 200
+
+    task_id = create_response.json()['id']
+
+    update_payload = {'status': 'in_progress'}
+    response = await client.patch(
+        f'/teams/{test_team_with_manager.id}/tasks/{task_id}',
+        json=update_payload,
+        headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()['status'] == 'in_progress'
 
 
 @pytest.mark.asyncio

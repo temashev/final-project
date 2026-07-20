@@ -1,4 +1,3 @@
-## TODO: ИНДЕКСЫ!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 from datetime import datetime, date
 
 from sqlalchemy import ForeignKey, String, Integer, DateTime, Date
@@ -13,8 +12,8 @@ class TeamMember(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     role: Mapped[str] = mapped_column(String, default='member')
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
-    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'))
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'), index=True)
 
     user: Mapped['User'] = relationship(back_populates='team_membership')
     team: Mapped['Team'] = relationship(back_populates='members')
@@ -42,7 +41,7 @@ class Team(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String)
-    invite_code: Mapped[str] = mapped_column(String)
+    invite_code: Mapped[str] = mapped_column(String, index=True, unique=True)
 
     members: Mapped[list['TeamMember']] = relationship(back_populates='team', cascade='all, delete-orphan')
     tasks: Mapped[list['Task']] = relationship(back_populates='team', cascade='all, delete-orphan')
@@ -59,11 +58,11 @@ class Task(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(String)
-    status: Mapped[str] = mapped_column(String, default='open')
-    due_date: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String, default='open', index=True)
+    due_date: Mapped[date] = mapped_column(Date, index=True)
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
-    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'))
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'), index=True)
 
     user: Mapped['User'] = relationship(back_populates='tasks')
     team: Mapped['Team'] = relationship(back_populates='tasks')
@@ -80,9 +79,9 @@ class Comment(Base):
     text: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
-    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'))
-    task_id: Mapped[int] = mapped_column(ForeignKey('tasks.id'))
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'), index=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey('tasks.id'), index=True)
 
     user: Mapped['User'] = relationship(back_populates='comments')
     team: Mapped['Team'] = relationship(back_populates='comments')
@@ -94,9 +93,9 @@ class TeamMeetings(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
-    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'))
-    meeting_id: Mapped[int] = mapped_column(ForeignKey('meetings.id'))
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'), index=True)
+    meeting_id: Mapped[int] = mapped_column(ForeignKey('meetings.id'), index=True)
 
     user: Mapped['User'] = relationship(back_populates='team_meetings_details')
     team: Mapped['Team'] = relationship(back_populates='team_meetings_details')
@@ -107,11 +106,11 @@ class Meeting(Base):
     __tablename__ = 'meetings'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
-    organizer_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
-    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'))
+    organizer_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey('teams.id'), index=True)
 
     organizer: Mapped['User'] = relationship(back_populates='organized_meetings')
     team: Mapped['Team'] = relationship(back_populates='meetings')
@@ -135,5 +134,5 @@ class BlackListTokens(Base):
     __tablename__ = 'blacklist_tokens'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    token: Mapped[str] = mapped_column(String)
-    expire_at: Mapped[datetime] = mapped_column(DateTime)
+    token: Mapped[str] = mapped_column(String, index=True, unique=True)
+    expire_at: Mapped[datetime] = mapped_column(DateTime, index=True)
