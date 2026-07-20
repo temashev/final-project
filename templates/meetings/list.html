@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Встречи команды</title>
+</head>
+<body>
+    <h2>Встречи команды ID: {{ team_id }}</h2>
+    <a href="/ui/teams/{{ team_id }}/">Назад к команде</a>
+    <hr>
+
+    <h3>Запланировать встречу</h3>
+    <form action="/ui/teams/{{ team_id }}/meetings/create/" method="POST">
+        <label>Начало (UTC):</label><br>
+        <input type="datetime-local" name="starts_at" required><br><br>
+
+        <label>Окончание (UTC):</label><br>
+        <input type="datetime-local" name="ends_at" required><br><br>
+
+        <label>ID участников (через запятую):</label><br>
+        <input type="text" name="member_ids" placeholder="Например: 1, 2, 5"><br><br>
+
+        <button type="submit">Создать встречу</button>
+    </form>
+
+    <hr>
+
+    <h3>Список встреч</h3>
+    <ul>
+        {% for meet in meetings %}
+            <li>
+                <strong><a href="/ui/teams/{{ team_id }}/meetings/{{ meet.id }}/">Встреча #{{ meet.id }}</a></strong><br>
+                Начало: {{ meet.starts_at }} <br>
+                Конец: {{ meet.ends_at }}
+            </li>
+            <br>
+        {% else %}
+            <li>Запланированных встреч нет.</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Встреча #{{ meeting.id }}</title>
+</head>
+<body>
+    <h2>Встреча #{{ meeting.id }}</h2>
+    <a href="/ui/teams/{{ team_id }}/meetings/">Назад к расписанию</a>
+    <hr>
+
+    <p><strong>Организатор:</strong> {{ meeting.organizer_name }} (ID: {{ meeting.organizer_id }})</p>
+    <p><strong>Участники:</strong></p>
+    <ul>
+        {% for member in meeting.members %}
+            <li>{{ member.full_name }} (ID: {{ member.id }})</li>
+        {% endfor %}
+    </ul>
+
+    <hr>
+    <h3>Управление встречей (только для менеджера)</h3>
+
+    <form action="/ui/teams/{{ team_id }}/meetings/{{ meeting.id }}/update/" method="POST">
+        <label>Новое время начала:</label><br>
+        <input type="datetime-local" name="starts_at"><br><br>
+
+        <label>Новое время окончания:</label><br>
+        <input type="datetime-local" name="ends_at"><br><br>
+
+        <button type="submit">Перенести встречу</button>
+    </form>
+    <br>
+    <form action="/ui/teams/{{ team_id }}/meetings/{{ meeting.id }}/delete/" method="POST" onsubmit="return confirm('Точно отменить встречу?');">
+        <button type="submit" style="color: red;">Отменить встречу</button>
+    </form>
+</body>
+</html>

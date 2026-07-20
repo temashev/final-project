@@ -1,3 +1,4 @@
+## TODO: ИНДЕКСЫ!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 from datetime import datetime, date
 
 from sqlalchemy import ForeignKey, String, Integer, DateTime, Date

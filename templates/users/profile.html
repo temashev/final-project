@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Мой профиль</title>
+</head>
+<body>
+<h2>{{ user.full_name }}</h2>
+
+<ul>
+    <li><strong>Email:</strong> {{ user.email }}</li>
+    <li><strong>Роль:</strong> {{ user.role }}</li>
+    <li><strong>Средняя оценка:</strong> {{ user.avg_score }}</li>
+</ul>
+
+<hr>
+
+<h3>Обновить профиль</h3>
+<form action="/ui/me/update/" method="POST">
+    <label>Новое имя:</label><br>
+    <input type="text" name="full_name" value="{{ user.full_name }}"><br><br>
+    <button type="submit">Сохранить</button>
+</form>
+
+<br>
+<a href="/ui/change-password/">Сменить пароль</a>
+
+<br>
+<form action="/ui/logout/" method="POST">
+    <button type="submit">Выйти</button>
+</form>
+</body>
+</html>

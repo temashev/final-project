@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Мои команды</title>
+</head>
+<body>
+    <h2>Управление командами</h2>
+
+    <a href="/ui/me/">Вернуться в профиль</a>
+    <hr>
+
+    <h3>Создать новую команду</h3>
+    <form action="/ui/teams/create/" method="POST">
+        <label>Название команды:</label><br>
+        <input type="text" name="name" required><br><br>
+        <button type="submit">Создать</button>
+    </form>
+
+    <hr>
+
+    <h3>Вступить по инвайт-коду</h3>
+    <form action="/ui/teams/join/" method="POST">
+        <label>Инвайт-код:</label><br>
+        <input type="text" name="invite_code" required><br><br>
+        <button type="submit">Вступить</button>
+    </form>
+</body>
+</html>

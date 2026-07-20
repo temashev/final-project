@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Задачи команды</title>
+</head>
+<body>
+    <h2>Задачи команды ID: {{ team_id }}</h2>
+    <a href="/ui/teams/{{ team_id }}/">Назад к команде</a>
+    <hr>
+
+    <h3>Добавить новую задачу</h3>
+    <form action="/ui/teams/{{ team_id }}/tasks/create/" method="POST">
+        <label>Название:</label><br>
+        <input type="text" name="title" required><br><br>
+
+        <label>Описание:</label><br>
+        <textarea name="description" required></textarea><br><br>
+
+        <label>Дедлайн:</label><br>
+        <input type="date" name="due_date" required><br><br>
+
+        <button type="submit">Создать задачу</button>
+    </form>
+
+    <hr>
+
+    <h3>Список задач</h3>
+    <ul>
+        {% for task in tasks %}
+            <li>
+                <strong><a href="/ui/teams/{{ team_id }}/tasks/{{ task.id }}/">{{ task.title }}</a></strong>
+                (Статус: {{ task.status }})
+            </li>
+        {% else %}
+            <li>Задач пока нет.</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

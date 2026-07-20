@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Календарь</title>
+</head>
+<body>
+    <h2>Календарь встреч</h2>
+    <a href="/ui/me/">В профиль</a>
+    <hr>
+
+    <form action="/ui/calendar/" method="GET">
+        <label>От:</label>
+        <input type="date" name="from_date" value="{{ current_from }}" required>
+        <label>До:</label>
+        <input type="date" name="to_date" value="{{ current_to }}" required>
+        <button type="submit">Показать</button>
+    </form>
+
+    <hr>
+
+    {% for meet in meetings %}
+        <div style="border: 1px solid #ccc; margin-bottom: 10px; padding: 10px;">
+            <strong>Команда: {{ meet.team_name }}</strong> (Организатор: {{ meet.organizer_name }})<br>
+            📅 {{ meet.starts_at }} — {{ meet.ends_at }}<br>
+            Участников: {{ meet.members|length }}
+        </div>
+    {% else %}
+        <p>На эти даты встреч нет.</p>
+    {% endfor %}
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Задача: {{ task.title }}</title>
+</head>
+<body>
+    <h2>{{ task.title }} (Статус: {{ task.status }})</h2>
+    <a href="/ui/teams/{{ team_id }}/tasks/">Назад к списку задач</a>
+
+    <p><strong>Описание:</strong> {{ task.description }}</p>
+    <p><strong>Дедлайн:</strong> {{ task.due_date }}</p>
+
+    <hr>
+
+    <h3>Обновить задачу</h3>
+    <form action="/ui/teams/{{ team_id }}/tasks/{{ task.id }}/update/" method="POST">
+        <label>Новый статус:</label>
+        <select name="status">
+            <option value="todo" {% if task.status == 'open' %}selected{% endif %}>Открыта</option>
+            <option value="in_progress" {% if task.status == 'in_progress' %}selected{% endif %}>В процессе</option>
+            <option value="done" {% if task.status == 'done' %}selected{% endif %}>Готово</option>
+        </select>
+        <button type="submit">Обновить статус</button>
+    </form>
+
+    <br>
+    <form action="/ui/teams/{{ team_id }}/tasks/{{ task.id }}/delete/" method="POST" onsubmit="return confirm('Точно удалить?');">
+        <button type="submit" style="color: red;">Удалить задачу</button>
+    </form>
+
+    <hr>
+
+    <h3>Оценка (только для менеджера, если статус 'done')</h3>
+    {% if task.status == 'done' %}
+        <form action="/ui/teams/{{ team_id }}/tasks/{{ task.id }}/evaluation/" method="POST">
+            <label>Оценка (1-5):</label>
+            <input type="number" name="score" min="1" max="5" required>
+            <input type="text" name="comment" placeholder="Комментарий к оценке" required>
+            <button type="submit">Оценить работу</button>
+        </form>
+    {% else %}
+        <p><i>Оценка будет доступна, когда задача перейдет в статус "Готово".</i></p>
+    {% endif %}
+
+    <hr>
+
+    <h3>Комментарии</h3>
+    <ul>
+        {% for comment in comments %}
+            <li><strong>User {{ comment.user_id }}:</strong> {{ comment.text }}</li>
+        {% else %}
+            <li>Комментариев пока нет.</li>
+        {% endfor %}
+    </ul>
+
+    <form action="/ui/teams/{{ team_id }}/tasks/{{ task.id }}/comments/create/" method="POST">
+        <textarea name="text" placeholder="Написать комментарий..." required></textarea><br>
+        <button type="submit">Отправить</button>
+    </form>
+</body>
+</html>

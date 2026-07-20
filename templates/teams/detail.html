@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Команда</title>
+</head>
+<body>
+    <h2>Команда ID: {{ team.id }}</h2>
+    <a href="/ui/teams/">Назад в дашборд</a>
+    <hr>
+
+    <h3>Участники</h3>
+    <ul>
+        {% for member in team.members %}
+            <li>
+                <strong>{{ member.full_name }}</strong> (Роль: {{ member.role }})
+
+                <form action="/ui/teams/{{ team.id }}/members/{{ member.id }}/role/" method="POST" style="display:inline;">
+                    <select name="new_role">
+                        <option value="member">Участник</option>
+                        <option value="manager">Менеджер</option>
+                    </select>
+                    <button type="submit">Сменить роль</button>
+                </form>
+
+                <form action="/ui/teams/{{ team.id }}/members/{{ member.id }}/delete/" method="POST" style="display:inline;">
+                    <button type="submit" style="color: red;">Исключить</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <hr>
+
+    <form action="/ui/teams/{{ team.id }}/leave/" method="POST">
+        <button type="submit" style="color: darkred;">Покинуть команду</button>
+    </form>
+</body>
+</html>
